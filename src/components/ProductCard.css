@@ -1,0 +1,39 @@
+/* src/components/ProductCard.css */
+.product-card {
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    margin-bottom: 10px; /* CHANGED: Reduced space between cards */
+    padding: 12px 20px;   /* CHANGED: Reduced top/bottom padding */
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-left: 8px solid #ccc; /* Default border color */
+    cursor: pointer;
+    transition: transform 0.2s ease-in-out;
+  }
+  
+  .product-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+  }
+  
+  .product-flavor {
+    margin: 0;
+    font-size: 1.3em; /* CHANGED: Slightly smaller font for a tighter fit */
+    color: #333;
+  }
+  
+  .product-status {
+    font-weight: bold;
+    font-size: 1.1em;
+    padding: 5px 10px;
+    border-radius: 20px;
+    color: #fff;
+    background-color: #6c757d; /* Default background */
+  }
+  
+  /* We'll set the real background color via inline style in the component */
+  .product-status span {
+    background-color: inherit;
+  }
