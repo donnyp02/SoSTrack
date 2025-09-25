@@ -1,8 +1,8 @@
 // src/App.js
-import { useState, useEffect, useMemo } from 'react'; // Import useMemo
+import { useState, useEffect, useMemo } from 'react';
 import './App.css';
 import { db } from './firebase';
-import { collection, getDocs, query, addDoc } from "firebase/firestore";
+import { collection, getDocs, query, addDoc, doc, writeBatch } from "firebase/firestore";
 import ProductCard from './components/ProductCard';
 import ManagementModal from './components/ManagementModal';
 import AddProductModal from './components/AddProductModal';
@@ -10,45 +10,38 @@ import AddProductModal from './components/AddProductModal';
 function App() {
   const [activeTab, setActiveTab] = useState('Production');
   const [products, setProducts] = useState([]);
+  const [categories, setCategories] = useState({});
+  const [batches, setBatches] = useState({});
   const [loading, setLoading] = useState(true);
   const [selectedProduct, setSelectedProduct] = useState(null);
-  const [categories, setCategories] = useState({});
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-
-  // --- NEW STATE FOR FILTERS ---
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategoryId, setSelectedCategoryId] = useState(''); // '' means "All"
+  const [selectedCategoryId, setSelectedCategoryId] = useState('');
 
   const fetchData = async () => {
     setLoading(true);
-    const categoriesCollectionRef = collection(db, "categories");
-    const categoriesSnapshot = await getDocs(categoriesCollectionRef);
+    // Fetch all three collections in parallel for speed
+    const [categoriesSnapshot, productsSnapshot, batchesSnapshot] = await Promise.all([
+      getDocs(collection(db, "categories")),
+      getDocs(collection(db, "products")),
+      getDocs(collection(db, "batches"))
+    ]);
+
     const categoriesMap = {};
     categoriesSnapshot.forEach(doc => {
       categoriesMap[doc.id] = { id: doc.id, ...doc.data() };
     });
     setCategories(categoriesMap);
 
-    const productsCollectionRef = collection(db, "products");
-    const productsSnapshot = await getDocs(productsCollectionRef);
-    const productsList = productsSnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }));
-
-    // The initial sort logic remains the same
-    const statusPriority = { 'Make': 1, 'Package': 2, 'Ready': 3, 'Idle': 4 };
-    productsList.sort((a, b) => {
-      const priorityA = statusPriority[a.status] || 5;
-      const priorityB = statusPriority[b.status] || 5;
-      if (priorityA !== priorityB) return priorityA - priorityB;
-      const categoryNameA = categoriesMap[a.categoryId]?.name || '';
-      const categoryNameB = categoriesMap[b.categoryId]?.name || '';
-      if (categoryNameA !== categoryNameB) return categoryNameA.localeCompare(categoryNameB);
-      return a.flavor.localeCompare(b.flavor);
-    });
-
+    const productsList = productsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     setProducts(productsList);
+    
+    const batchesMap = {};
+    batchesSnapshot.forEach(doc => {
+      batchesMap[doc.id] = { id: doc.id, ...doc.data() };
+    });
+    setBatches(batchesMap);
+
     setLoading(false);
   };
 
@@ -56,39 +49,51 @@ function App() {
     fetchData();
   }, []);
 
-  // --- NEW: DERIVED STATE FOR FILTERED PRODUCTS ---
-  // useMemo ensures this logic only runs when the source data or filters change.
-  const filteredProducts = useMemo(() => {
-    let tempProducts = [...products];
-
-    // 1. Apply category filter
-    if (selectedCategoryId) {
-      tempProducts = tempProducts.filter(p => p.categoryId === selectedCategoryId);
-    }
-
-    // 2. Apply search term filter
-    if (searchTerm) {
-      tempProducts = tempProducts.filter(p => 
-        p.flavor.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-
-    return tempProducts;
-  }, [products, searchTerm, selectedCategoryId]);
-
-  const handleProductUpdate = (updatedProduct) => {
-    let newProducts = products.map(p => p.id === updatedProduct.id ? updatedProduct : p);
-    const statusPriority = { 'Make': 1, 'Package': 2, 'Ready': 3, 'Idle': 4 };
-    newProducts.sort((a, b) => {
-        const priorityA = statusPriority[a.status] || 5;
-        const priorityB = statusPriority[b.status] || 5;
-        if (priorityA !== priorityB) return priorityA - priorityB;
-        const categoryNameA = categories[a.categoryId]?.name || '';
-        const categoryNameB = categories[b.categoryId]?.name || '';
-        if (categoryNameA !== categoryNameB) return categoryNameA.localeCompare(categoryNameB);
-        return a.flavor.localeCompare(b.flavor);
+  const displayList = useMemo(() => {
+    // This is where we merge products with their most recent batch data for display
+    let combined = products.map(product => {
+      const productBatches = Object.values(batches).filter(b => b.productId === product.id);
+      // Find the most recent batch (or the one that's not 'Completed')
+      const activeBatch = productBatches.find(b => b.status !== 'Completed') || 
+                          productBatches.sort((a,b) => b.dateStarted.toMillis() - a.dateStarted.toMillis())[0];
+      
+      return {
+        ...product,
+        // The display status comes from the batch, defaults to Idle
+        status: activeBatch?.status || 'Idle',
+        activeBatchId: activeBatch?.id,
+        request: activeBatch?.request,
+        finalCount: activeBatch?.finalCount
+      };
     });
-    setProducts(newProducts);
+
+    // Apply filters
+    if (selectedCategoryId) {
+      combined = combined.filter(p => p.categoryId === selectedCategoryId);
+    }
+    if (searchTerm) {
+      combined = combined.filter(p => p.flavor.toLowerCase().includes(searchTerm.toLowerCase()));
+    }
+
+    // Apply sorting
+    const statusPriority = { 'Make': 1, 'Package': 2, 'Ready': 3, 'Idle': 4 };
+    combined.sort((a, b) => {
+      const priorityA = statusPriority[a.status] || 5;
+      const priorityB = statusPriority[b.status] || 5;
+      if (priorityA !== priorityB) return priorityA - priorityB;
+      const categoryNameA = categories[a.categoryId]?.name || '';
+      const categoryNameB = categories[b.categoryId]?.name || '';
+      if (categoryNameA !== categoryNameB) return categoryNameA.localeCompare(categoryNameB);
+      return a.flavor.localeCompare(b.flavor);
+    });
+
+    return combined;
+  }, [products, categories, batches, searchTerm, selectedCategoryId]);
+
+  const handleProductUpdate = () => {
+    // Instead of a complex local update, just re-fetch all data.
+    // This is simpler and ensures all data is consistent.
+    fetchData();
   };
   
   const handleAddProduct = async ({ category: categoryName, flavor }) => {
@@ -97,7 +102,7 @@ function App() {
       const newCategoryDoc = await addDoc(collection(db, "categories"), { name: categoryName, packageOptions: [] });
       categoryId = newCategoryDoc.id;
     }
-    await addDoc(collection(db, "products"), { categoryId: categoryId, flavor: flavor, status: 'Idle', statusSetAt: new Date() });
+    await addDoc(collection(db, "products"), { categoryId: categoryId, flavor: flavor, onHandOz: 0 });
     setIsAddModalOpen(false);
     fetchData();
   };
@@ -117,22 +122,11 @@ function App() {
       </nav>
 
       <main>
-        {/* --- UPDATED FILTER BAR --- */}
         <div className="filter-bar">
-          <input 
-            type="text" 
-            placeholder="Search by flavor..." 
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-          <select 
-            value={selectedCategoryId} 
-            onChange={(e) => setSelectedCategoryId(e.target.value)}
-          >
+          <input type="text" placeholder="Search by flavor..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+          <select value={selectedCategoryId} onChange={(e) => setSelectedCategoryId(e.target.value)}>
             <option value="">All Categories</option>
-            {Object.values(categories).map(cat => (
-              <option key={cat.id} value={cat.id}>{cat.name}</option>
-            ))}
+            {Object.values(categories).map(cat => ( <option key={cat.id} value={cat.id}>{cat.name}</option> ))}
           </select>
           <button className="clear-btn" onClick={clearFilters}>Clear</button>
         </div>
@@ -140,24 +134,18 @@ function App() {
         <div className="inventory-list">
           <h2>Inventory Items</h2>
           {loading ? (<p>Loading products...</p>) : (
-            // We now map over the filtered list instead of the full list
-            filteredProducts.map(product => {
-              const categoryName = categories[product.categoryId]?.name || 'Unknown Category';
+            displayList.map(product => {
+              const category = categories[product.categoryId];
               return (
-                <ProductCard 
-                  key={product.id} 
-                  product={product}
-                  categoryName={categoryName}
-                  onClick={() => setSelectedProduct(product)}
-                />
+                <ProductCard key={product.id} product={product} category={category} onClick={() => setSelectedProduct(product)} />
               )
             })
           )}
         </div>
       </main>
 
-      {selectedProduct && (<ManagementModal product={selectedProduct} category={categories[selectedProduct.categoryId]} onClose={() => setSelectedProduct(null)} onUpdate={handleProductUpdate}/>)}
-      {isAddModalOpen && (<AddProductModal categories={categories} onClose={() => setIsAddModalOpen(false)} onSubmit={handleAddProduct} onDataRefresh={fetchData}/>)}
+      {selectedProduct && ( <ManagementModal product={selectedProduct} category={categories[selectedProduct.categoryId]} onClose={() => setSelectedProduct(null)} onUpdate={handleProductUpdate} /> )}
+      {isAddModalOpen && ( <AddProductModal categories={categories} onClose={() => setIsAddModalOpen(false)} onSubmit={handleAddProduct} onDataRefresh={fetchData} /> )}
 
       <button className="add-product-btn" onClick={() => setIsAddModalOpen(true)}>+</button>
     </div>

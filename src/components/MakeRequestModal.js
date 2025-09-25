@@ -1,80 +1,131 @@
-// src/components/MakeRequestModal.js
-import React, { useState, useMemo } from 'react';
-import './MakeRequestModal.css';
+// src/components/ManagementModal.js
+import React, { useState } from 'react';
+import './ManagementModal.css';
+import { db } from '../firebase';
+import { doc, updateDoc, addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import MakeRequestModal from './MakeRequestModal';
+import FinalCountModal from './FinalCountModal';
+import VerificationModal from './VerificationModal';
+import CategoryContainersModal from './CategoryContainersModal'; // Import container modal
 
-const MakeRequestModal = ({ category, onSubmit, onClose }) => {
-  // State to hold the quantity for each package option, e.g., { pkg_4oz: 10, pkg_8oz: 5 }
-  const [quantities, setQuantities] = useState({});
+const ManagementModal = ({ product, category, onClose, onUpdate }) => {
+  const [isMakeModalOpen, setIsMakeModalOpen] = useState(false);
+  const [isFinalCountModalOpen, setIsFinalCountModalOpen] = useState(false);
+  const [isVerificationModalOpen, setIsVerificationModalOpen] = useState(false);
+  const [isContainersModalOpen, setIsContainersModalOpen] = useState(false); // New state for containers
+  const [tempFinalCount, setTempFinalCount] = useState(null);
 
-  const handleQuantityChange = (packageId, value) => {
-    const newQuantities = { ...quantities };
-    // Ensure we're dealing with numbers, default to 0 if input is empty/invalid
-    newQuantities[packageId] = parseInt(value, 10) || 0;
-    setQuantities(newQuantities);
-  };
+  if (!product) return null;
 
-  // useMemo will re-calculate the weight only when the 'quantities' change.
-  const totalWeightLbs = useMemo(() => {
-    let totalOunces = 0;
-    for (const packageId in quantities) {
-      const pkg = category.packageOptions.find(p => p.id === packageId);
-      if (pkg && quantities[packageId] > 0) {
-        totalOunces += pkg.weightOz * quantities[packageId];
+  const handleStatusUpdate = async (newStatus, data = null) => {
+    try {
+      if (newStatus === 'Make') {
+        await addDoc(collection(db, "batches"), {
+          productId: product.id, categoryId: product.categoryId, status: 'Make',
+          dateStarted: serverTimestamp(), request: data, finalCount: null
+        });
+      } else if (product.activeBatchId) {
+        const batchDocRef = doc(db, "batches", product.activeBatchId);
+        const updatePayload = { status: newStatus };
+        if (newStatus === 'Ready' && data) {
+          updatePayload.finalCount = data;
+          // TODO in future: Increment product.onHandOz here in a transaction
+        }
+        await updateDoc(batchDocRef, updatePayload);
       }
+      onUpdate();
+      onClose();
+    } catch (error) {
+      console.error("Error updating status: ", error);
+      alert("Failed to update status. Please try again.");
     }
-    return (totalOunces / 16).toFixed(2); // Convert ounces to pounds
-  }, [quantities, category.packageOptions]);
-
-  const handleSubmit = () => {
-    // Filter out any packages with 0 quantity
-    const requestedPackages = category.packageOptions
-      .filter(pkg => quantities[pkg.id] > 0)
-      .map(pkg => ({
-        packageId: pkg.id,
-        quantity: quantities[pkg.id],
-      }));
-
-    const requestData = {
-      requestedPackages,
-      calculatedWeightLbs: parseFloat(totalWeightLbs)
-    };
-    onSubmit(requestData);
   };
+  
+  const handleContainerSave = async (newPackageOptions) => {
+    const categoryDocRef = doc(db, "categories", product.categoryId);
+    try {
+      await updateDoc(categoryDocRef, { packageOptions: newPackageOptions });
+      setIsContainersModalOpen(false);
+      onUpdate(); // Refresh all app data
+    } catch (error) {
+      console.error("Error updating containers:", error);
+      alert("Failed to update containers.");
+    }
+  };
+
+  const handleFinalize = (finalCountData) => {
+    setTempFinalCount(finalCountData);
+    setIsFinalCountModalOpen(false);
+    setIsVerificationModalOpen(true);
+  };
+  
+  const onHandLbs = Math.floor((product.onHandOz || 0) / 16);
+  const onHandOzRemainder = (product.onHandOz || 0) % 16;
+  const inProductionLbs = product.request?.calculatedWeightLbs || 0;
 
   return (
-    <div className="modal-backdrop">
-      <div className="modal-content small-modal">
-        <div className="modal-header">
-          <h3>New Make Request</h3>
-          <button onClick={onClose} className="close-button">&times;</button>
-        </div>
-        <div className="modal-body">
-          <p>Enter the number of retail packages needed.</p>
-          <div className="package-inputs">
-            {category.packageOptions.map(pkg => (
-              <div className="package-input-group" key={pkg.id}>
-                <label>{pkg.name}</label>
-                <input
-                  type="number"
-                  min="0"
-                  placeholder="0"
-                  onChange={(e) => handleQuantityChange(pkg.id, e.target.value)}
-                />
+    <>
+      <div className="modal-backdrop" onClick={onClose}>
+        <div className="modal-content" onClick={e => e.stopPropagation()}>
+          <div className="modal-header">
+            <h2>Manage: {category?.name} {product.flavor}</h2>
+            <button onClick={onClose} className="close-button">&times;</button>
+          </div>
+          {/* --- NEW DASHBOARD LAYOUT --- */}
+          <div className="modal-body">
+            <div className="action-column">
+              <div className="action-section">
+                <h4>Change Status</h4>
+                <div className="status-buttons">
+                  <button className={`status-btn ${product.status === 'Make' ? 'red' : 'grey'}`} onClick={() => setIsMakeModalOpen(true)} disabled={product.status !== 'Idle'}>
+                    New Production Run
+                  </button>
+                  <button className={`status-btn ${product.status === 'Package' ? 'yellow' : 'grey'}`} onClick={() => handleStatusUpdate('Package')} disabled={product.status !== 'Make'}>
+                    Mark as Packaged
+                  </button>
+                  <button className={`status-btn ${product.status === 'Ready' ? 'green' : 'grey'}`} onClick={() => setIsFinalCountModalOpen(true)} disabled={product.status !== 'Package'}>
+                    Finalize Production
+                  </button>
+                </div>
               </div>
-            ))}
-          </div>
-          <div className="weight-display">
-            <h4>Total Weight Required</h4>
-            <span>{totalWeightLbs} lbs</span>
-          </div>
-          <div className="form-actions">
-            <button onClick={onClose} className="btn-cancel">Cancel</button>
-            <button onClick={handleSubmit} className="btn-submit">Submit Request</button>
+            </div>
+            <div className="info-column">
+              <div className="info-section">
+                <h4>Inventory</h4>
+                <div className="inventory-stats">
+                  <div className="stat-item">
+                    <span>{`${onHandLbs} lbs ${onHandOzRemainder} oz`}</span>
+                    <small>On Hand</small>
+                  </div>
+                  <div className="stat-item">
+                    <span>{`${inProductionLbs.toFixed(2)} lbs`}</span>
+                    <small>In Production</small>
+                  </div>
+                </div>
+              </div>
+              <div className="info-section">
+                <h4>Containers</h4>
+                <ul className="package-list">
+                  {category?.packageOptions?.length > 0 ? (
+                    category.packageOptions.map(opt => <li key={opt.id}>{opt.name} ({opt.weightOz} oz)</li>)
+                  ) : (
+                    <li>No containers defined.</li>
+                  )}
+                </ul>
+                <button className="status-btn grey" onClick={() => setIsContainersModalOpen(true)}>Manage Containers</button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+
+      {/* --- ALL THE OTHER MODALS ARE RENDERED HERE --- */}
+      {isMakeModalOpen && ( <MakeRequestModal category={category} onClose={() => setIsMakeModalOpen(false)} onSubmit={(requestData) => { handleStatusUpdate('Make', requestData); }} /> )}
+      {isFinalCountModalOpen && ( <FinalCountModal category={category} onClose={() => setIsFinalCountModalOpen(false)} onSubmit={handleFinalize} /> )}
+      {isVerificationModalOpen && ( <VerificationModal product={product} category={category} finalCountData={tempFinalCount} onClose={() => { setIsVerificationModalOpen(false); setIsFinalCountModalOpen(true); }} onVerify={() => { handleStatusUpdate('Ready', tempFinalCount); }} /> )}
+      {isContainersModalOpen && ( <CategoryContainersModal category={category} onClose={() => setIsContainersModalOpen(false)} onSave={handleContainerSave} />)}
+    </>
   );
 };
 
-export default MakeRequestModal;
+export default ManagementModal;

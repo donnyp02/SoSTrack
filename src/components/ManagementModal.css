@@ -1,94 +1,78 @@
 /* src/components/ManagementModal.css */
-
-/* --- Part 1: The Modal Structure (This is the crucial part!) --- */
 .modal-backdrop {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.6);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 1000;
-  }
-  
-  .modal-content {
-    background-color: white;
-    padding: 30px;
-    border-radius: 10px;
-    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-    width: 90%;
-    max-width: 600px;
-    animation: slide-down 0.3s ease-out;
-  }
-  
-  .modal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    border-bottom: 1px solid #eee;
-    padding-bottom: 15px;
-    margin-bottom: 20px;
-  }
-  
-  .modal-header h2 {
-    margin: 0;
-  }
-  
-  .close-button {
-    background: transparent;
-    border: none;
-    font-size: 2.5rem;
-    font-weight: 300;
-    line-height: 1;
-    color: #aaa;
-    cursor: pointer;
-  }
-  
-  @keyframes slide-down {
-    from {
-      transform: translateY(-50px);
-      opacity: 0;
-    }
-    to {
-      transform: translateY(0);
-      opacity: 1;
-    }
-  }
-  
-  /* --- Part 2: The Status Button Styles --- */
-  .status-buttons {
-    display: flex;
-    gap: 10px;
-    margin-top: 10px;
-  }
-  
-  .status-btn {
-    flex: 1;
-    padding: 15px;
-    font-size: 1em;
-    font-weight: bold;
-    border: 2px solid transparent;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.2s ease-in-out;
-  }
-  
-  .status-btn:disabled {
-    cursor: not-allowed;
-    opacity: 0.5;
-  }
-  
-  .status-btn.grey {
-    background-color: #f0f0f0;
-    color: #555;
-  }
-  .status-btn.grey:not(:disabled):hover {
-    border-color: #ccc;
-  }
-  
-  .status-btn.red { background-color: #dc3545; color: white; }
-  .status-btn.yellow { background-color: #ffc107; color: #333; }
-  .status-btn.green { background-color: #28a745; color: white; }
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background-color: rgba(0, 0, 0, 0.6); display: flex;
+  justify-content: center; align-items: center; z-index: 1000;
+}
+.modal-content {
+  background-color: white; padding: 30px; border-radius: 10px;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.3); width: 90%;
+  max-width: 600px; /* Adjusted width */
+  animation: slide-down 0.3s ease-out;
+}
+.modal-header {
+  display: flex; justify-content: space-between; align-items: center;
+  border-bottom: 1px solid #eee; padding-bottom: 15px; margin-bottom: 20px;
+}
+.modal-header h2 { margin: 0; }
+.close-button {
+  background: transparent; border: none; font-size: 2.5rem;
+  font-weight: 300; line-height: 1; color: #aaa; cursor: pointer;
+}
+
+/* --- NEW LAYOUT STYLES --- */
+.modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 25px; /* Space between button bar and content */
+}
+
+.top-status-bar {
+  display: flex;
+  width: 100%;
+  gap: 10px;
+}
+
+.dashboard-content {
+  display: grid;
+  grid-template-columns: 1fr 1fr; /* Two equal columns */
+  gap: 30px;
+}
+
+.info-section h4 {
+  margin: 0 0 10px 0; border-bottom: 1px solid #eee;
+  padding-bottom: 5px; color: #555;
+}
+
+.status-btn {
+  flex: 1; /* This makes the top buttons stretch */
+  padding: 12px 10px; font-size: 1em; font-weight: bold;
+  border: 2px solid transparent; border-radius: 8px; cursor: pointer;
+  transition: all 0.2s ease-in-out;
+}
+
+.status-btn:disabled { cursor: not-allowed; opacity: 0.5; }
+.status-btn.grey { background-color: #f0f0f0; color: #555; }
+.status-btn.grey:not(:disabled):hover { border-color: #ccc; }
+.status-btn.red { background-color: #dc3545; color: white; }
+.status-btn.yellow { background-color: #ffc107; color: #333; }
+.status-btn.green { background-color: #28a745; color: white; }
+
+.inventory-stats {
+  display: flex; justify-content: space-around; text-align: center;
+  background-color: #f8f9fa; padding: 15px; border-radius: 8px;
+}
+.stat-item span {
+  display: block; font-size: 1.5em; font-weight: bold; color: #007bff;
+}
+.stat-item small { color: #6c757d; }
+.package-list { list-style: none; padding: 0; margin: 0; }
+.package-list li {
+  background-color: #f8f9fa; padding: 8px 12px;
+  border-radius: 4px; margin-bottom: 5px;
+}
+
+@keyframes slide-down {
+  from { transform: translateY(-50px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
