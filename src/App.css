@@ -70,3 +70,36 @@ body {
   border-bottom: 1px solid #eee;
   padding-bottom: 10px;
 }
+
+/* Add this to the bottom of src/App.css */
+.add-product-btn {
+  position: fixed;
+  bottom: 30px;
+  right: 30px;
+  width: 60px;
+  height: 60px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  font-size: 2.5em;
+  line-height: 55px;
+  text-align: center;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+  cursor: pointer;
+  transition: transform 0.2s ease-in-out;
+}
+
+.add-product-btn:hover {
+  transform: scale(1.1);
+}
+
+/* Add this to the bottom of src/App.css */
+.clear-btn {
+  padding: 10px 15px;
+  background-color: #6c757d;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}

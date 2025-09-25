@@ -3,34 +3,49 @@ import React, { useState } from 'react';
 import './ManagementModal.css';
 import { db } from '../firebase';
 import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
-import MakeRequestModal from './MakeRequestModal'; // Import the new modal
+import MakeRequestModal from './MakeRequestModal';
+import FinalCountModal from './FinalCountModal';
+import VerificationModal from './VerificationModal'; // Import the new modal
 
 const ManagementModal = ({ product, category, onClose, onUpdate }) => {
-  // State to control the visibility of the new MakeRequestModal
   const [isMakeModalOpen, setIsMakeModalOpen] = useState(false);
+  const [isFinalCountModalOpen, setIsFinalCountModalOpen] = useState(false);
+  // State to control the Verification modal
+  const [isVerificationModalOpen, setIsVerificationModalOpen] = useState(false);
+  // State to temporarily hold the final counts between modals
+  const [tempFinalCount, setTempFinalCount] = useState(null);
+
 
   if (!product) return null;
 
-  // The update function now accepts optional requestData
-  const handleStatusUpdate = async (newStatus, requestData = null) => {
+  const handleStatusUpdate = async (newStatus, data = null) => {
     const productDocRef = doc(db, "products", product.id);
     const updatePayload = {
       status: newStatus,
       statusSetAt: serverTimestamp()
     };
 
-    if (requestData) {
-      updatePayload.request = requestData;
+    if (newStatus === 'Make' && data) {
+      updatePayload.request = data;
+    } else if (newStatus === 'Ready' && data) {
+      updatePayload.finalCount = data;
     }
 
     try {
       await updateDoc(productDocRef, updatePayload);
-      onUpdate({ ...product, ...updatePayload }); // Send updated data back to App
-      onClose(); // Close the main modal
+      onUpdate({ ...product, ...updatePayload });
+      onClose();
     } catch (error) {
       console.error("Error updating status: ", error);
       alert("Failed to update status. Please try again.");
     }
+  };
+
+  // --- New function to handle the multi-step finalization ---
+  const handleFinalize = (finalCountData) => {
+    setTempFinalCount(finalCountData); // Store the counts
+    setIsFinalCountModalOpen(false); // Close the count modal
+    setIsVerificationModalOpen(true); // Open the verification modal
   };
 
   return (
@@ -46,7 +61,6 @@ const ManagementModal = ({ product, category, onClose, onUpdate }) => {
             <div className="status-buttons">
               <button
                 className={`status-btn ${product.status === 'Make' ? 'red' : 'grey'}`}
-                // When clicked, open the Make Request modal
                 onClick={() => setIsMakeModalOpen(true)}
               >
                 Need to Make
@@ -60,7 +74,7 @@ const ManagementModal = ({ product, category, onClose, onUpdate }) => {
               </button>
               <button
                 className={`status-btn ${product.status === 'Ready' ? 'green' : 'grey'}`}
-                onClick={() => handleStatusUpdate('Ready')}
+                onClick={() => setIsFinalCountModalOpen(true)}
                 disabled={product.status !== 'Package'}
               >
                 Ready
@@ -70,7 +84,6 @@ const ManagementModal = ({ product, category, onClose, onUpdate }) => {
         </div>
       </div>
 
-      {/* Conditionally render the new modal on top */}
       {isMakeModalOpen && (
         <MakeRequestModal
           category={category}
@@ -78,6 +91,32 @@ const ManagementModal = ({ product, category, onClose, onUpdate }) => {
           onSubmit={(requestData) => {
             handleStatusUpdate('Make', requestData);
             setIsMakeModalOpen(false);
+          }}
+        />
+      )}
+
+      {isFinalCountModalOpen && (
+        <FinalCountModal
+          category={category}
+          onClose={() => setIsFinalCountModalOpen(false)}
+          // onSubmit now triggers our new multi-step handler
+          onSubmit={handleFinalize}
+        />
+      )}
+
+      {isVerificationModalOpen && (
+        <VerificationModal
+          product={product}
+          category={category}
+          finalCountData={tempFinalCount}
+          // The "Change" button closes this and re-opens the previous modal
+          onClose={() => {
+            setIsVerificationModalOpen(false);
+            setIsFinalCountModalOpen(true);
+          }}
+          // The "Verify" button finally commits the update to the database
+          onVerify={() => {
+            handleStatusUpdate('Ready', tempFinalCount);
           }}
         />
       )}

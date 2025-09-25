@@ -1,0 +1,61 @@
+/* src/components/VerificationModal.css */
+.summary-box {
+    text-align: center;
+    padding: 15px;
+    margin-bottom: 20px;
+    border-radius: 8px;
+    font-size: 1.5em;
+    font-weight: bold;
+    color: white;
+  }
+  
+  .summary-box.on-count { background-color: #28a745; }
+  .summary-box.over-count { background-color: #007bff; }
+  .summary-box.under-count { background-color: #ffc107; color: #333; }
+  .summary-box.mixed-count { background-color: #6c757d; }
+  
+  .comparison-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 25px;
+  }
+  
+  .comparison-table th, .comparison-table td {
+    padding: 12px;
+    text-align: center;
+    border-bottom: 1px solid #dee2e6;
+  }
+  
+  .comparison-table th {
+    background-color: #f8f9fa;
+  }
+  
+  .comparison-table td:first-child {
+    text-align: left;
+    font-weight: bold;
+  }
+  
+  .comparison-table .diff {
+    font-weight: bold;
+    color: #dc3545;
+  }
+  
+  .btn-change {
+    background-color: #dc3545;
+    color: white;
+    padding: 10px 20px;
+    font-size: 1em;
+    border-radius: 5px;
+    border: none;
+    cursor: pointer;
+  }
+  
+  .btn-verify {
+    background-color: #28a745;
+    color: white;
+    padding: 10px 20px;
+    font-size: 1em;
+    border-radius: 5px;
+    border: none;
+    cursor: pointer;
+  }
