@@ -217,7 +217,7 @@ function App() {
 
   return (
     <div className="App">
-      <header className="header"><h1>SoSTrack Inventory</h1></header>
+      <header className="header"><h1>SoSTrack</h1></header>
       <nav className="tab-navigation">
         <button className="tab-button active">Production</button>
         <button className="tab-button">Packaging</button>
@@ -233,7 +233,7 @@ function App() {
           <button className="clear-btn" onClick={() => { setSearchTerm(''); setSelectedCategoryId(''); }}>Clear</button>
         </div>
         <div className="inventory-list">
-          <h2>Inventory Items</h2>
+          
           {loading ? (<p>Loading...</p>) : (
             displayList.map(p => <ProductCard key={p.id} product={p} category={categories[p.categoryId]} onClick={() => { setSelectedProductId(p.id); handleOpenModal('manageProduct'); }} />)
           )}
