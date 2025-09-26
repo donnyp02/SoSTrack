@@ -1,126 +1,178 @@
 // src/components/ManagementModal.js
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import './ManagementModal.css';
 import { db } from '../firebase';
-import { doc, updateDoc, addDoc, collection, serverTimestamp } from 'firebase/firestore';
-import MakeRequestModal from './MakeRequestModal';
-import FinalCountModal from './FinalCountModal';
-import VerificationModal from './VerificationModal';
-import CategoryContainersModal from './CategoryContainersModal';
+import { doc, updateDoc, addDoc, collection, serverTimestamp, writeBatch, FieldValue, deleteDoc } from 'firebase/firestore';
+import { FaCog, FaHistory, FaTrash } from 'react-icons/fa';
+import { FiEdit } from 'react-icons/fi';
 
-const ManagementModal = ({ product, category, onClose, onUpdate }) => {
-  const [isMakeModalOpen, setIsMakeModalOpen] = useState(false);
-  const [isFinalCountModalOpen, setIsFinalCountModalOpen] = useState(false);
-  const [isVerificationModalOpen, setIsVerificationModalOpen] = useState(false);
-  const [isContainersModalOpen, setIsContainersModalOpen] = useState(false);
-  const [tempFinalCount, setTempFinalCount] = useState(null);
+// (Other modal imports would be here)
+
+// --- NEW HELPER FUNCTION ---
+const formatWeight = (ounces) => {
+  if (isNaN(ounces) || ounces === 0) return "0 lbs 0 oz";
+  const lbs = Math.floor(ounces / 16);
+  const oz = Math.round(ounces % 16);
+  return `${lbs} lbs ${oz} oz`;
+};
+
+const ManagementModal = ({ product, category, onUpdate, onDeleteBatches, onClose, onOpenModal }) => {
+  const [showCompleted, setShowCompleted] = useState(false);
+  const [selectedBatches, setSelectedBatches] = useState(new Set());
+  
+  const activeBatches = useMemo(() => 
+    (product?.batches || []).filter(b => b.status !== 'Completed'), 
+    [product?.batches]
+  );
+
+  const completedBatches = useMemo(() => 
+    (product?.batches || []).filter(b => b.status === 'Completed'),
+    [product?.batches]
+  );
+
+  const inProductionLbs = useMemo(() => 
+    activeBatches.reduce((total, batch) => total + (batch.request?.calculatedWeightLbs || 0), 0),
+    [activeBatches]
+  );
+
+  const canPackage = useMemo(() => Array.from(selectedBatches).every(id => activeBatches.find(b => b.id === id)?.status === 'Make'), [selectedBatches, activeBatches]);
+  
+  const canFinalize = useMemo(() => {
+    if (selectedBatches.size !== 1) return false;
+    const selectedId = selectedBatches.values().next().value;
+    return activeBatches.find(b => b.id === selectedId)?.status === 'Package';
+  }, [selectedBatches, activeBatches]);
+
+  useEffect(() => {
+    if (activeBatches.length === 1) {
+      setSelectedBatches(new Set([activeBatches[0].id]));
+    } else {
+      setSelectedBatches(new Set());
+    }
+  }, [activeBatches]);
 
   if (!product) return null;
 
-  const handleStatusUpdate = async (newStatus, data = null) => {
-    try {
-      if (newStatus === 'Make') {
-        await addDoc(collection(db, "batches"), {
-          productId: product.id, categoryId: product.categoryId, status: 'Make',
-          dateStarted: serverTimestamp(), request: data, finalCount: null
-        });
-      } else if (product.activeBatchId) {
-        const batchDocRef = doc(db, "batches", product.activeBatchId);
-        const updatePayload = { status: newStatus };
-        if (newStatus === 'Ready' && data) {
-          updatePayload.finalCount = data;
-          // TODO: Increment product.onHandOz
-        }
-        await updateDoc(batchDocRef, updatePayload);
-      }
-      onUpdate();
-      onClose();
-    } catch (error) {
-      console.error("Error updating status: ", error);
-      alert("Failed to update status. Please try again.");
-    }
-  };
-  
-  const handleContainerSave = async (newPackageOptions) => {
-    const categoryDocRef = doc(db, "categories", product.categoryId);
-    try {
-      await updateDoc(categoryDocRef, { packageOptions: newPackageOptions });
-      setIsContainersModalOpen(false);
-      onUpdate();
-    } catch (error) {
-      console.error("Error updating containers:", error);
-      alert("Failed to update containers.");
-    }
-  };
-
-  const handleFinalize = (finalCountData) => {
-    setTempFinalCount(finalCountData);
-    setIsFinalCountModalOpen(false);
-    setIsVerificationModalOpen(true);
-  };
-  
   const onHandLbs = Math.floor((product.onHandOz || 0) / 16);
   const onHandOzRemainder = (product.onHandOz || 0) % 16;
-  const inProductionLbs = product.request?.calculatedWeightLbs || 0;
+
+  const handlePackage = () => {
+    selectedBatches.forEach(batchId => {
+      onUpdate('Package', null, batchId);
+    });
+  };
+
+  const handleFinalize = () => {
+    const selectedId = selectedBatches.values().next().value;
+    const batch = activeBatches.find(b => b.id === selectedId);
+    onOpenModal('finalCount', batch);
+  };
+
+  const handleDeleteSelected = () => {
+    onDeleteBatches(Array.from(selectedBatches));
+  };
+
+  const SelectableBatchRow = ({ batch, category }) => {
+    const isSelected = selectedBatches.has(batch.id);
+    const handleSelection = (batchId) => {
+        const newSelection = new Set(selectedBatches);
+        if (newSelection.has(batchId)) {
+            newSelection.delete(batchId);
+        } else {
+            newSelection.add(batchId);
+        }
+        setSelectedBatches(newSelection);
+    };
+
+    const displayWeight = useMemo(() => {
+        if (batch.status === 'Ready' || batch.status === 'Completed') {
+          if (!batch.finalCount?.countedPackages || !category?.packageOptions) return "N/A";
+          let totalOunces = 0;
+          batch.finalCount.countedPackages.forEach(p => {
+            const template = category.containerTemplates.find(t => t.id === p.packageId);
+            if (template) { totalOunces += template.weightOz * p.quantity; }
+          });
+          return formatWeight(totalOunces);
+        }
+        if (batch.request?.calculatedWeightLbs) {
+          const totalOunces = batch.request.calculatedWeightLbs * 16;
+          return formatWeight(totalOunces);
+        }
+        return "N/A";
+      }, [batch, category]);
+
+    return (
+      <div className={`batch-row ${isSelected ? 'selected' : ''}`} onClick={() => handleSelection(batch.id)}>
+        <div className="batch-details">
+          <span className={`batch-status-tag status-${batch.status?.toLowerCase()}`}>{batch.status}</span>
+          <span>{displayWeight}</span>
+        </div>
+        <small>
+          {batch.dateStarted ? 
+            `${new Date(batch.dateStarted.toDate()).toLocaleTimeString('en-US', {
+                hour: '2-digit', minute: '2-digit', hour12: false
+            })} ${new Date(batch.dateStarted.toDate()).toLocaleDateString('en-US', {
+                year: '2-digit', month: 'numeric', day: 'numeric'
+            })}`
+            : 'N/A'}
+        </small>
+      </div>
+    );
+  };
 
   return (
-    <>
-      <div className="modal-backdrop" onClick={onClose}>
-        <div className="modal-content" onClick={e => e.stopPropagation()}>
-          <div className="modal-header">
-            <h2>Manage: {category?.name} {product.flavor}</h2>
-            <button onClick={onClose} className="close-button">&times;</button>
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal-content wide" onClick={e => e.stopPropagation()}>
+        <div className="modal-header">
+          <h2>
+            Manage: {category?.name} {product.flavor}
+            <button className="icon-btn" onClick={() => onOpenModal('editProduct')}><FiEdit /></button> 
+          </h2>
+          <button onClick={onClose} className="close-button">&times;</button>
+        </div>
+        <div className="modal-body">
+          <div className="top-status-bar">
+            <button className="status-btn red" onClick={() => onOpenModal('makeRequest')}>New Production Run</button>
+            <button className="status-btn yellow" onClick={handlePackage} disabled={selectedBatches.size === 0 || !canPackage}>Mark as Packaged</button>
+            <button className="status-btn green" onClick={handleFinalize} disabled={!canFinalize}>Finalize Production</button>
           </div>
-          <div className="modal-body">
-            {/* --- NEW: TOP STATUS BUTTON BAR --- */}
-            <div className="top-status-bar">
-              <button className={`status-btn ${product.status === 'Make' ? 'red' : 'grey'}`} onClick={() => setIsMakeModalOpen(true)} disabled={product.status !== 'Idle'}>
-                Make
-              </button>
-              <button className={`status-btn ${product.status === 'Package' ? 'yellow' : 'grey'}`} onClick={() => handleStatusUpdate('Package')} disabled={product.status !== 'Make'}>
-                Package
-              </button>
-              <button className={`status-btn ${product.status === 'Ready' ? 'green' : 'grey'}`} onClick={() => setIsFinalCountModalOpen(true)} disabled={product.status !== 'Package'}>
-                Ready
-              </button>
-            </div>
-            {/* --- NEW: CONTENT DASHBOARD BELOW BUTTONS --- */}
-            <div className="dashboard-content">
-              <div className="info-section">
-                <h4>Inventory</h4>
-                <div className="inventory-stats">
-                  <div className="stat-item">
-                    <span>{`${onHandLbs} lbs ${onHandOzRemainder} oz`}</span>
-                    <small>On Hand</small>
-                  </div>
-                  <div className="stat-item">
-                    <span>{`${inProductionLbs.toFixed(2)} lbs`}</span>
-                    <small>In Production</small>
-                  </div>
-                </div>
+          <div className="dashboard-content">
+            <div className="info-section left">
+              <h4>Inventory</h4>
+              <div className="inventory-stats">
+                <div className="stat-item"><span>{`${onHandLbs} lbs ${onHandOzRemainder} oz`}</span><small>On Hand</small></div>
+                <div className="stat-item"><span>{`${inProductionLbs.toFixed(2)} lbs`}</span><small>In Production</small></div>
               </div>
-              <div className="info-section">
-                <h4>Containers</h4>
-                <ul className="package-list">
-                  {category?.packageOptions?.length > 0 ? (
-                    category.packageOptions.map(opt => <li key={opt.id}>{opt.name} ({opt.weightOz} oz)</li>)
-                  ) : (
-                    <li>No containers defined.</li>
-                  )}
-                </ul>
-                <button className="status-btn grey" onClick={() => setIsContainersModalOpen(true)}>Manage Containers</button>
+              <h4>Containers <button className="icon-btn" onClick={() => onOpenModal('containers')}><FaCog /></button></h4>
+              <ul className="package-list">
+                {product?.packageOptions?.length > 0 ? (
+                  product.packageOptions.map(opt => <li key={opt.id}>{opt.name} ({opt.weightOz} oz) - <span>{opt.quantity || 0}</span></li>)
+                ) : (<li>No container templates.</li>)}
+              </ul>
+            </div>
+            <div className="info-section right">
+              <div className="batch-list-header">
+                <h4>Active Production Runs ({activeBatches.length})
+                  <button className="icon-btn" onClick={() => setShowCompleted(!showCompleted)} title="Toggle Completed Batches"><FaHistory /></button>
+                  {selectedBatches.size > 0 && (<button className="icon-btn" onClick={handleDeleteSelected} title="Delete Selected Batches"><FaTrash color="red" /></button>)}
+                </h4>
+              </div>
+              <div className="batch-list">
+                {activeBatches.length > 0 ? (
+                  activeBatches.map(b => <SelectableBatchRow key={b.id} batch={b} category={category} />)
+                ) : (<p>No active production runs.</p>)}
+                {showCompleted && (
+                  <>
+                    <h4 className="completed-header" style={{marginTop: '15px'}}>Completed Runs</h4>
+                    {completedBatches.map(b => <SelectableBatchRow key={b.id} batch={b} category={category} />)}
+                  </>
+                )}
               </div>
             </div>
           </div>
         </div>
       </div>
-
-      {/* Other modals are unchanged */}
-      {isMakeModalOpen && ( <MakeRequestModal category={category} onClose={() => setIsMakeModalOpen(false)} onSubmit={(requestData) => { handleStatusUpdate('Make', requestData); }} /> )}
-      {isFinalCountModalOpen && ( <FinalCountModal category={category} onClose={() => setIsFinalCountModalOpen(false)} onSubmit={handleFinalize} /> )}
-      {isVerificationModalOpen && ( <VerificationModal product={product} category={category} finalCountData={tempFinalCount} onClose={() => { setIsVerificationModalOpen(false); setIsFinalCountModalOpen(true); }} onVerify={() => { handleStatusUpdate('Ready', tempFinalCount); }} /> )}
-      {isContainersModalOpen && ( <CategoryContainersModal category={category} onClose={() => setIsContainersModalOpen(false)} onSave={handleContainerSave} />)}
-    </>
+    </div>
   );
 };
 

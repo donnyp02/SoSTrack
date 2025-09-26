@@ -1,10 +1,8 @@
-// src/components/FinalCountModal.js
 import React, { useState } from 'react';
-// We can reuse the same CSS from our other modal!
 import './MakeRequestModal.css';
 
-const FinalCountModal = ({ category, onSubmit, onClose }) => {
-  // State to hold the final count for each package option
+// It now correctly expects the 'product' prop
+const FinalCountModal = ({ product, onSubmit, onClose }) => {
   const [counts, setCounts] = useState({});
 
   const handleCountChange = (packageId, value) => {
@@ -14,16 +12,18 @@ const FinalCountModal = ({ category, onSubmit, onClose }) => {
   };
 
   const handleSubmit = () => {
-    // Filter out any packages with 0 quantity
-    const countedPackages = category.packageOptions
+    const countedPackages = (product.packageOptions || [])
       .filter(pkg => counts[pkg.id] > 0)
       .map(pkg => ({
         packageId: pkg.id,
         quantity: counts[pkg.id],
       }));
     
-    const finalCountData = { countedPackages };
-    onSubmit(finalCountData);
+    if (countedPackages.length === 0) {
+      alert("Please enter a quantity for at least one package.");
+      return;
+    }
+    onSubmit({ countedPackages });
   };
 
   return (
@@ -36,15 +36,10 @@ const FinalCountModal = ({ category, onSubmit, onClose }) => {
         <div className="modal-body">
           <p>Enter the final number of retail packages produced.</p>
           <div className="package-inputs">
-            {category?.packageOptions?.map(pkg => (
+            {(product?.packageOptions || []).map(pkg => (
               <div className="package-input-group" key={pkg.id}>
                 <label>{pkg.name}</label>
-                <input
-                  type="number"
-                  min="0"
-                  placeholder="0"
-                  onChange={(e) => handleCountChange(pkg.id, e.target.value)}
-                />
+                <input type="number" min="0" placeholder="0" onChange={(e) => handleCountChange(pkg.id, e.target.value)} />
               </div>
             ))}
           </div>

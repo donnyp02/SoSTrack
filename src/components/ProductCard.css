@@ -3,24 +3,47 @@
     background-color: #fff;
     border-radius: 8px;
     box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-    margin-bottom: 10px; /* CHANGED: Reduced space between cards */
-    padding: 12px 20px;   /* CHANGED: Reduced top/bottom padding */
+    margin-bottom: 10px;
+    padding: 12px 20px 12px 25px; /* Add padding for the bar */
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border-left: 8px solid #ccc; /* Default border color */
     cursor: pointer;
-    transition: transform 0.2s ease-in-out;
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    position: relative; /* Crucial for layering */
+    overflow: hidden; /* Ensures pseudo-elements don't bleed out */
   }
   
   .product-card:hover {
     transform: translateY(-3px);
     box-shadow: 0 4px 10px rgba(0,0,0,0.15);
   }
+
+  .striped-bar, .card-background {
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+  }
+
+  .striped-bar {
+    width: 5px;
+    z-index: 1;
+  }
+
+  .card-background {
+    right: 0;
+    z-index: 2;
+  }
   
+  .product-info, .product-status {
+    position: relative;
+    z-index: 3; /* Ensure content is on top */
+  }
+
   .product-flavor {
     margin: 0;
-    font-size: 1.3em; /* CHANGED: Slightly smaller font for a tighter fit */
+    font-size: 1.3em;
     color: #333;
   }
   
@@ -33,7 +56,6 @@
     background-color: #6c757d; /* Default background */
   }
   
-  /* We'll set the real background color via inline style in the component */
   .product-status span {
     background-color: inherit;
   }

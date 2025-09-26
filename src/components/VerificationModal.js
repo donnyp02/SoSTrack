@@ -2,11 +2,11 @@
 import React from 'react';
 import './VerificationModal.css';
 
-const VerificationModal = ({ product, category, finalCountData, onVerify, onClose }) => {
+const VerificationModal = ({ product, batch, finalCountData, onVerify, onClose }) => {
   // Create a comparison table for easy display
-  const comparisonData = category.packageOptions.map(pkg => {
-    const requestedPkg = product.request?.requestedPackages?.find(rp => rp.packageId === pkg.id);
-    const countedPkg = finalCountData.countedPackages.find(cp => cp.packageId === pkg.id);
+  const comparisonData = product.packageOptions.map(pkg => {
+    const requestedPkg = batch.request?.requestedPackages?.find(rp => rp.packageId === pkg.id);
+    const countedPkg = finalCountData?.countedPackages?.find(cp => cp.packageId === pkg.id);
 
     const requestedQty = requestedPkg?.quantity || 0;
     const producedQty = countedPkg?.quantity || 0;
@@ -29,8 +29,8 @@ const VerificationModal = ({ product, category, finalCountData, onVerify, onClos
   if (isOver && isUnder) { summaryText = "Mixed Count"; summaryClass = "mixed-count"; }
 
   return (
-    <div className="modal-backdrop">
-      <div className="modal-content">
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal-content" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
           <h3>Verify Final Count</h3>
         </div>
@@ -58,7 +58,7 @@ const VerificationModal = ({ product, category, finalCountData, onVerify, onClos
               ))}
             </tbody>
           </table>
-          <div className="form-actions">
+          <div className="form-actions" style={{ zIndex: 100 }}>
             <button onClick={onClose} className="btn-change">Change</button>
             <button onClick={onVerify} className="btn-verify">Verify</button>
           </div>

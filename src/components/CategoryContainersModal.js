@@ -1,9 +1,10 @@
-// src/components/CategoryContainersModal.js
 import React, { useState } from 'react';
 import './CategoryContainersModal.css';
 
+// It now correctly expects a 'category' prop
 const CategoryContainersModal = ({ category, onSave, onClose }) => {
-  const [packageOptions, setPackageOptions] = useState(category.packageOptions || []);
+  // It now correctly reads from category.containerTemplates
+  const [packageOptions, setPackageOptions] = useState(category.containerTemplates || []);
   const [newName, setNewName] = useState('');
   const [newWeight, setNewWeight] = useState('');
   const [editingOptionId, setEditingOptionId] = useState(null);
@@ -19,7 +20,6 @@ const CategoryContainersModal = ({ category, onSave, onClose }) => {
       alert('Please enter a valid name and a weight greater than 0.');
       return;
     }
-
     if (editingOptionId) {
       const updatedOptions = packageOptions.map(opt => 
         opt.id === editingOptionId 
@@ -35,7 +35,6 @@ const CategoryContainersModal = ({ category, onSave, onClose }) => {
       };
       setPackageOptions([...packageOptions, newOption]);
     }
-    
     cancelEdit();
   };
   
@@ -50,16 +49,16 @@ const CategoryContainersModal = ({ category, onSave, onClose }) => {
   };
 
   return (
-    <div className="modal-backdrop">
-      <div className="modal-content small-modal">
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal-content small-modal" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
-          <h3>Manage Containers for "{category.name}"</h3>
+          <h3>Manage Templates for "{category.name}"</h3>
           <button onClick={onClose} className="close-button">&times;</button>
         </div>
         <div className="modal-body">
           <div className="options-list">
             {packageOptions.length === 0 ? (
-              <p className="no-options">No containers defined yet.</p>
+              <p className="no-options">No container templates defined yet.</p>
             ) : (
               packageOptions.map(opt => (
                 <div key={opt.id} className="option-item" onClick={() => handleEditClick(opt)}>
@@ -68,30 +67,15 @@ const CategoryContainersModal = ({ category, onSave, onClose }) => {
               ))
             )}
           </div>
-
           <div className="add-new-option-container">
-            <h4>{editingOptionId ? 'Edit Container' : 'Add New Container'}</h4>
+            <h4>{editingOptionId ? 'Edit Template' : 'Add New Template'}</h4>
             <div className="form-inputs">
-              <input 
-                type="text" 
-                value={newName} 
-                onChange={e => setNewName(e.target.value)}
-                placeholder="Package Name (e.g., 4oz Bag)" 
-              />
-              <input 
-                type="number" 
-                value={newWeight} 
-                onChange={e => setNewWeight(e.target.value)}
-                placeholder="Weight in Oz" 
-              />
+              <input type="text" value={newName} onChange={e => setNewName(e.target.value)} placeholder="Template Name (e.g., 4oz Bag)" />
+              <input type="number" value={newWeight} onChange={e => setNewWeight(e.target.value)} placeholder="Weight in Oz" />
             </div>
             <div className="form-actions-inline">
-              {editingOptionId && (
-                <button onClick={cancelEdit} className="cancel-edit-btn">Cancel</button>
-              )}
-              <button onClick={handleFormSubmit} className="add-update-btn">
-                {editingOptionId ? 'Update' : 'Add'}
-              </button>
+              {editingOptionId && (<button onClick={cancelEdit} className="cancel-edit-btn">Cancel</button>)}
+              <button onClick={handleFormSubmit} className="add-update-btn">{editingOptionId ? 'Update' : 'Add'}</button>
             </div>
           </div>
         </div>
