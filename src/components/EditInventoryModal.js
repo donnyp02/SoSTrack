@@ -1,77 +1,150 @@
 // src/components/EditInventoryModal.js
 import React, { useState, useEffect } from 'react';
-import './AddProductModal.css'; // Using similar styling
+import './EditInventoryModal.css';
 
-const EditInventoryModal = ({ product, onSave, onClose }) => {
-  // Initialize state from the product's packageOptions, which are derived from the category templates
+const EditInventoryModal = ({ product, onSave, onClose, onManageContainers = null }) => {
   const [inventory, setInventory] = useState([]);
 
-  // useEffect to sync state when the product prop changes
   useEffect(() => {
     if (product && product.packageOptions) {
-      // Ensure we have a quantity field, defaulting to 0
-      const initialInventory = product.packageOptions.map(opt => ({
+      const initialInventory = product.packageOptions.map((opt) => ({
         ...opt,
-        quantity: opt.quantity || 0
+        quantity: opt.quantity || 0,
       }));
       setInventory(initialInventory);
     }
   }, [product]);
 
-  const handleSave = () => {
-    // Transform the state back into the format expected by Firestore
-    // Only include items that have a quantity to keep the data clean
-    const newInventoryForDb = inventory
-      .filter(item => item.quantity > 0)
-      .map(({ id, quantity }) => ({
-        templateId: id,
-        quantity: Number(quantity)
-      }));
-    onSave(newInventoryForDb);
-    onClose();
-  };
-
   const handleQuantityChange = (index, value) => {
     const newInventory = [...inventory];
-    // Ensure value is a non-negative number
     newInventory[index].quantity = Math.max(0, Number(value));
     setInventory(newInventory);
   };
 
-  // The product prop might not be available on the first render
+  const handleSave = () => {
+    const newInventoryForDb = inventory
+      .filter((item) => item.quantity > 0)
+      .map(({ id, quantity }) => ({
+        templateId: id,
+        quantity: Number(quantity),
+      }));
+
+    onSave(newInventoryForDb);
+    onClose();
+  };
+
+  const handleSubmit = (event) => {
+    event.preventDefault();
+    handleSave();
+  };
+
   if (!product) {
     return null;
   }
 
+  const categoryName = product.categoryName || product.category || '';
+  const categorySku = product.categorySku || product.categoryPrefix || (typeof product.sku === 'string' ? product.sku.split('-')[0] : '');
+  const flavorName = product.flavor || '';
+  const flavorSku = product.flavorSku || '';
+  const skuPrefix = categorySku ? categorySku + '-' : '-';
+  const enableManageContainers = typeof onManageContainers === 'function';
+
   return (
     <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal-content" onClick={e => e.stopPropagation()}>
+      <form className="modal-content" onClick={(e) => e.stopPropagation()} onSubmit={handleSubmit}>
         <div className="modal-header">
-          <h3>Edit Inventory: {product.flavor}</h3>
-          <button onClick={onClose} className="close-button">&times;</button>
+          <h2>Edit Inventory</h2>
+          <button type="button" onClick={onClose} className="close-button">&times;</button>
         </div>
+
         <div className="modal-body">
-          <h4>Container Inventory</h4>
-          {inventory.length > 0 ? (
-            inventory.map((item, index) => (
-              <div key={item.id} className="form-group">
-                <label>{item.name} ({item.weightOz} oz)</label>
+          <div className="category-group">
+            <div className="form-group">
+              <label htmlFor="edit-category">Category</label>
+              <input
+                id="edit-category"
+                type="text"
+                value={categoryName}
+                placeholder="Category name"
+                disabled
+              />
+            </div>
+
+            <button
+              type="button"
+              className="manage-btn"
+              disabled={!enableManageContainers}
+              onClick={() => enableManageContainers && onManageContainers(product)}
+            >
+              Manage Containers
+            </button>
+
+            <div className="form-group category-sku-group">
+              <label htmlFor="edit-category-sku">Category SKU</label>
+              <input
+                id="edit-category-sku"
+                type="text"
+                value={categorySku}
+                placeholder="Category SKU"
+                disabled
+              />
+            </div>
+          </div>
+
+          <div className="tight-stack">
+            <div className="form-group" id="flavor-group">
+              <label htmlFor="edit-flavor">Flavor</label>
+              <input
+                id="edit-flavor"
+                type="text"
+                value={flavorName}
+                placeholder="Flavor"
+                disabled
+              />
+            </div>
+
+            <div className="form-group" id="flavor-sku-wrap">
+              <label htmlFor="flavor-sku">Flavor SKU</label>
+              <div className="flavor-sku-group">
+                <span className="sku-prefix">{skuPrefix}</span>
                 <input
-                  type="number"
-                  value={item.quantity}
-                  onChange={(e) => handleQuantityChange(index, e.target.value)}
-                  min="0"
+                  id="flavor-sku"
+                  type="text"
+                  value={flavorSku}
+                  placeholder="Flavor SKU"
+                  disabled
                 />
               </div>
-            ))
+            </div>
+          </div>
+
+          <h4>Container Inventory</h4>
+          {inventory.length > 0 ? (
+            inventory.map((item, index) => {
+              const inputId = 'inventory-' + (item.id || index);
+              const labelText = item.name + ' (' + item.weightOz + ' oz)';
+              return (
+                <div key={item.id || index} className="form-group">
+                  <label htmlFor={inputId}>{labelText}</label>
+                  <input
+                    id={inputId}
+                    type="number"
+                    value={item.quantity}
+                    onChange={(e) => handleQuantityChange(index, e.target.value)}
+                    min="0"
+                  />
+                </div>
+              );
+            })
           ) : (
             <p>No container types have been defined for this product's category.</p>
           )}
-          <div className="form-actions">
-            <button onClick={handleSave} className="submit-btn">Save</button>
-          </div>
         </div>
-      </div>
+
+        <div className="modal-footer">
+          <button type="submit" className="add-btn">Save</button>
+        </div>
+      </form>
     </div>
   );
 };

@@ -1,200 +1,149 @@
-/* src/components/AddProductModal.css */
+:root {
+  --bg: #ffffff;
+  --bg-muted: #f7f8fa;
+  --text: #1f2937;
+  --text-muted: #5b6470;
+  --border: #e3e6ea;
+  --input: #ffffff;
+  --input-border: #cfd3d7;
+  --input-border-hover: #b7bcc2;
+  --ring: #3b82f6;
+  --ring-weak: rgba(59,130,246,.2);
+  --primary: #0d6efd;
+  --primary-hover: #0b61df;
+  --primary-active: #094fb5;
+  --secondary: #6c757d;
+  --secondary-hover: #5f676f;
+  --secondary-disabled: #d6d9dd;
 
-/* ===== Base styles ===== */
-.form-group {
-  margin-bottom: 15px;
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+
+  --shadow-sm: 0 1px 2px rgba(0,0,0,.04);
+  --shadow-md: 0 6px 24px rgba(16,24,40,.08);
+
+  --space-1: 4px;
+  --space-2: 6px;
+  --space-3: 8px;
+  --space-4: 10px;
+  --space-5: 12px;
+  --space-6: 14px;
+  --space-7: 16px;
+  --space-8: 18px;
 }
 
-.form-group label {
-  display: block;
-  margin-bottom: 5px;
-  font-weight: bold;
-  color: #333;
-}
+/* Modal chrome */
+.modal-content { background: var(--bg); border-radius: var(--radius-lg); box-shadow: var(--shadow-md); }
+.modal-header { padding-bottom: var(--space-6); margin-bottom: var(--space-6); border-bottom: 1px solid var(--border); }
+.modal-header h2 { color: var(--text); font-weight: 800; letter-spacing: .2px; }
+.close-button { border: 0; background: transparent; font-size: 28px; line-height: 1; color: #98a2b3; cursor: pointer; }
+.close-button:hover { color: #667085; }
+.modal-footer { border-top: 1px solid var(--border); padding-top: var(--space-6); margin-top: var(--space-6); text-align: right; }
 
-/* inputs + selects share look */
-.form-group input,
-.form-group select {
+/* Base form */
+.form-group { margin-bottom: 15px; }
+.form-group label { display: block; margin-bottom: var(--space-3); font-weight: 700; color: var(--text); }
+
+/* Inputs + Selects */
+.form-group input, .form-group select {
   width: 100%;
-  padding: 10px;
-  font-size: 1em;
-  border: 1px solid #ccc;
-  border-radius: 6px;
+  padding: var(--space-5) var(--space-6);
+  font-size: 1rem;
+  color: var(--text);
+  background: var(--input);
+  border: 1px solid var(--input-border);
+  border-radius: var(--radius-sm);
   box-sizing: border-box;
-  background: #fff;
+  transition: border-color .15s ease, box-shadow .15s ease, background-color .15s ease;
 }
+.form-group input::placeholder, .form-group select::placeholder { color: #9aa3ab; }
+.form-group input:hover, .form-group select:hover { border-color: var(--input-border-hover); }
+.form-group input:focus, .form-group select:focus { outline: 0; border-color: var(--ring); box-shadow: 0 0 0 3px var(--ring-weak); }
 
-/* Category row */
-.category-group {
-  display: flex;
-  gap: 10px;
-  align-items: flex-end;
+/* Optional select caret */
+.selectlike {
+  appearance: none;
+  background-image:
+    linear-gradient(45deg, transparent 50%, #6b7680 50%),
+    linear-gradient(135deg, #6b7680 50%, transparent 50%),
+    linear-gradient(to right, var(--input-border), var(--input-border));
+  background-position:
+    calc(100% - 18px) calc(50% - 3px),
+    calc(100% - 12px) calc(50% - 3px),
+    calc(100% - 32px) 50%;
+  background-size: 6px 6px, 6px 6px, 1px 60%;
+  background-repeat: no-repeat;
+  cursor: pointer;
 }
-.category-group .form-group { flex-grow: 1; }
-
-.category-sku-group {
-  width: 150px;
-  flex-shrink: 0;
-}
-
-/* Flavor SKU inline group */
-.flavor-sku-group {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-}
-.flavor-sku-group .sku-prefix { font-weight: bold; }
-.flavor-sku-group input { flex-grow: 1; }
 
 /* Buttons */
-.manage-btn {
-  padding: 10px 15px;
-  background-color: #6c757d;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-}
-.manage-btn:disabled { background-color: #ccc; cursor: not-allowed; }
-
-/* Footer */
-.modal-footer {
-  border-top: 1px solid #eee;
-  padding-top: 15px;
-  margin-top: 15px;
-  text-align: right;
-}
 .add-btn {
-  background-color: #007bff;
-  color: white;
-  padding: 10px 20px;
-  font-size: 1em;
-  font-weight: bold;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
+  background: var(--primary); color: #fff; padding: 10px 20px; font-size: 1rem; font-weight: 700;
+  border: 0; border-radius: var(--radius-md); cursor: pointer; box-shadow: var(--shadow-sm);
+  transition: transform .05s ease, filter .15s ease, background .15s ease;
 }
+.add-btn:hover { background: var(--primary-hover); filter: brightness(.98); }
+.add-btn:active { background: var(--primary-active); transform: translateY(1px); }
+.manage-btn {
+  padding: 10px 14px; background: var(--secondary); color: #fff; border: 0; border-radius: var(--radius-sm);
+  font-weight: 700; box-shadow: var(--shadow-sm); transition: background .15s ease, transform .05s ease;
+}
+.manage-btn:hover { background: var(--secondary-hover); }
+.manage-btn:active { transform: translateY(1px); }
+.manage-btn:disabled { background: var(--secondary-disabled); color: #f1f3f6; cursor: not-allowed; }
 
-/* =======================================================================
-   OVERRIDES: small, indented SKU rows under their parents
-   ======================================================================= */
-
-/* Category: use grid so SKU can sit under */
+/* SKU layout */
 .modal-content .category-group {
-  display: grid !important;
-  grid-template-columns: 1fr auto;
-  gap: 12px;
+  display: grid;
+  grid-template-columns: 1fr auto; /* [Category] [Manage] */
+  gap: var(--space-5);
   align-items: end;
 }
 
-/* Category SKU on its own row, inline label + input */
+/* Category SKU row (inline label + input, indented) */
 .modal-content .category-sku-group {
-  grid-column: 1 / 2 !important;
-  display: grid !important;
-  grid-template-columns: auto 1fr;   /* [label] [input] */
-  align-items: center;
-  column-gap: 10px;
-  width: auto !important;
-  max-width: 360px !important;
-  margin-left: 22px !important;
-  margin-top: 0 !important;
+  grid-column: 1 / 2;
+  display: grid;
+  grid-template-columns: auto 1fr; align-items: center; column-gap: var(--space-4);
+  width: auto; max-width: 360px; margin-left: 22px; margin-top: 0;
 }
-.modal-content .category-sku-group > label {
-  margin: 0 !important;
-  padding: 0 !important;
-  font-size: 0.92rem;
-  color: #66707a;
-  font-weight: 700;
-  white-space: nowrap;
-}
+.modal-content .category-sku-group > label { margin: 0; font-size: .92rem; color: var(--text-muted); white-space: nowrap; }
 .modal-content .category-sku-group > input {
-  height: 32px !important;
-  line-height: 32px !important;
-  padding: 6px 10px !important;
-  font-size: 0.95rem;
-  border-radius: 8px;
-  border: 1px solid #cfd3d7;
-  background: #fff;
+  height: 32px; line-height: 32px; padding: 6px 10px; font-size: .95rem; border-radius: var(--radius-sm);
+  background: var(--input);
 }
+.modal-content .category-group > .form-group:first-child { margin-bottom: 2px; }
 
-/* Tighten gap under Category input */
-.modal-content .category-group > .form-group:first-child {
-  margin-bottom: 2px !important;
-}
+/* Tight stack for Flavor + Flavor SKU */
+.modal-content .tight-stack { display: grid; row-gap: 0; }
+.modal-content .tight-stack > #flavor-group { margin-bottom: 0; }
+.modal-content .tight-stack > #flavor-sku-wrap { margin-top: -8px; } /* adjust -6/-10 to taste */
 
-/* === Tight stack container for Flavor + Flavor SKU === */
-.modal-content .tight-stack { 
-  display: grid;
-  row-gap: 0;              /* default: no vertical gap */
-}
-
-.modal-content .tight-stack > #flavor-group {
-  margin-bottom: 0 !important;  /* remove default 15px */
-}
-
-.modal-content .tight-stack > #flavor-sku-wrap {
-  margin-top: -8px !important;  /* pull SKU row up; tweak -6/-10 to taste */
-}
-
-/* Flavor SKU inline label + field alignment */
+/* Flavor SKU row (inline label + chip + input, indented) */
 .modal-content .form-group#flavor-sku-wrap {
-  display: grid !important;
-  grid-template-columns: auto 1fr;    /* [label] [chip+input] */
-  align-items: center;
-  column-gap: 10px;
-  margin-left: 22px;                  /* same indent as Category SKU */
-  max-width: 620px;
+  display: grid; grid-template-columns: auto 1fr; align-items: center; column-gap: var(--space-4);
+  margin-left: 22px; max-width: 620px;
 }
-
 .modal-content .form-group#flavor-sku-wrap > label[for="flavor-sku"] {
-  margin: 0 !important;
-  padding: 0 !important;
-  font-size: 0.92rem;
-  color: #66707a;
-  font-weight: 700;
-  white-space: nowrap;
+  margin: 0; font-size: .92rem; color: var(--text-muted); white-space: nowrap;
 }
-
 .modal-content .form-group#flavor-sku-wrap > .flavor-sku-group {
-  margin: 20px !important;               /* no extra gap inside (fix from 20px) */
-  display: grid;
-  grid-template-columns: auto 1fr;    /* [chip] [input] */
-  align-items: center;
-  column-gap: 8px;
+  margin: 0; display: grid; grid-template-columns: auto 1fr; align-items: center; column-gap: var(--space-3);
 }
 
-.modal-content .form-group#flavor-sku-wrap .flavor-sku-group input {
-  height: 32px !important;
-  line-height: 32px !important;
-  padding: 6px 10px !important;
-  font-size: 0.95rem;
-  border-radius: 8px;
-  border: 1px solid #cfd3d7;
-}
+/* Grey SKU prefix chip (the “-” or “SK-”) */
 .modal-content .form-group#flavor-sku-wrap .flavor-sku-group .sku-prefix {
-  height: 32px !important;
-  line-height: 32px !important;
-  padding: 0 10px;
-  min-width: 30px;
-  text-align: center;
-  color: #8a94a0;
-  background: #f4f6f8;
-  border: 1px solid #e2e6ea;
-  border-radius: 8px;
-  font-weight: 600;
+  height: 32px; line-height: 32px; padding: 0 10px; min-width: 52px; text-align: center;
+  color: #8a94a0; background: var(--bg-muted); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); font-weight: 600;
 }
 
-/* Footer divider a touch closer (keeps rhythm tight) */
-.modal-content .modal-footer {
-  margin-top: 8px !important;
-  padding-top: 8px !important;
-}
-
-/* === Match widths for both SKU inputs (left-aligned text) === */
+/* Make both SKU input widths match exactly (left-aligned text) */
 .modal-content .category-sku-group input,
 .modal-content #flavor-sku-wrap .flavor-sku-group input {
-  width: 220px !important;     /* same width for both SKU inputs */
-  max-width: 220px !important;
-  flex-grow: 0 !important;     /* prevent stretching */
-  text-align: left;            /* keep left aligned (your preference) */
+  width: 220px; max-width: 220px; flex-grow: 0; text-align: left;
 }
+
+/* Footer rhythm */
+.modal-content .modal-footer { margin-top: 8px; padding-top: 8px; }

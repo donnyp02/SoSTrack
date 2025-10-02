@@ -1,0 +1,3 @@
+@import './AddProductModal.css';
+/* If the bundler doesn’t allow @import, copy the entire AddProductModal.css content here.
+   Optionally override only modal-specific pieces below. */
