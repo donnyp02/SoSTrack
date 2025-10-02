@@ -132,6 +132,16 @@
     padding: 0;
 }
 
+.linklike {
+    background: none;
+    border: none;
+    color: #0d6efd;
+    cursor: pointer;
+    padding: 0;
+    font: inherit;
+    text-decoration: underline;
+}
+
 .file-input-container {
     margin-bottom: 20px;
 }
@@ -143,6 +153,30 @@
     gap: 10px;
     margin-bottom: 16px;
 }
+.btn-file-menu { position: relative; display: inline-block; }
+.file-menu {
+    position: absolute;
+    top: 110%;
+    left: 0;
+    background: #fff;
+    border: 1px solid #e3e6ea;
+    border-radius: 8px;
+    box-shadow: 0 6px 24px rgba(16,24,40,.08);
+    padding: 6px;
+    z-index: 10;
+    min-width: 180px;
+}
+.file-menu-item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: transparent;
+    border: 0;
+    padding: 8px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+}
+.file-menu-item:hover { background: #f7f9fc; }
 .btn-file {
     display: inline-block;
     padding: 10px 14px;
@@ -164,6 +198,16 @@
     font-weight: 700;
     cursor: pointer;
 }
+.btn-secondary {
+    padding: 10px 14px;
+    background: #fff;
+    border: 1px solid #cfd3d7;
+    color: #1f2937;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+}
+.btn-secondary:hover { background: #f7f9fc; }
 .btn-primary:disabled {
     background: #c7d7fe;
     border-color: #c7d7fe;
@@ -214,6 +258,13 @@ table {
 }
 .whatnot-table th:nth-child(5), .whatnot-table td:nth-child(5) { /* Description */
     white-space: normal;
+}
+
+/* Section separator rows */
+.section-row td {
+    background: #f5f7fa;
+    color: #5b6470;
+    font-weight: 700;
 }
 
 th, td {

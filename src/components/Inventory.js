@@ -1,4 +1,4 @@
-﻿import React, { useState, useMemo } from 'react';
+﻿import React, { useState, useMemo, useRef } from 'react';
 import Papa from 'papaparse';
 import './Inventory.css';
 import AssignProductModal from './AssignProductModal';
@@ -6,6 +6,7 @@ import AddProductModal from './AddProductModal';
 import ManualStockEditor from './ManualStockEditor';
 import InventoryHistory from './InventoryHistory';
 import ProductCard from './ProductCard';
+import CsvViewerModal from './CsvViewerModal';
 
 const SECTIONS = {
   IMPORT: 'import',
@@ -21,6 +22,9 @@ const Inventory = ({ onImport, products, categories, onAddProduct, onInventorySa
   const [refreshHistory, setRefreshHistory] = useState(false);
   const [activeSection, setActiveSection] = useState(SECTIONS.IMPORT);
   const [isHistoryModalOpen, setHistoryModalOpen] = useState(false);
+  const [csvViewer, setCsvViewer] = useState({ open: false, id: null });
+  const [showFileMenu, setShowFileMenu] = useState(false);
+  const fileInputRef = useRef(null);
 
   const handleFileChange = (e) => {
     setFile(e.target.files[0]);
@@ -28,6 +32,14 @@ const Inventory = ({ onImport, products, categories, onAddProduct, onInventorySa
 
   const handleParse = () => {
     if (file) {
+      try {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          setParsedCsvText(String(e.target?.result || ''));
+          setParsedCsvName(file.name || 'upload.csv');
+        };
+        reader.readAsText(file);
+      } catch (e) { /* ignore */ }
       Papa.parse(file, {
         header: true,
         skipEmptyLines: true,
@@ -50,6 +62,7 @@ const Inventory = ({ onImport, products, categories, onAddProduct, onInventorySa
             if (!grouped.has(key)) {
               grouped.set(key, {
                 ...raw,
+                _groupKey: key,
                 sku,
                 'product name': name,
                 'product description': desc,
@@ -73,9 +86,14 @@ const Inventory = ({ onImport, products, categories, onAddProduct, onInventorySa
     setAssignModalOpen(true);
   };
 
-  const handleAssignProduct = (productId) => {
-    const updatedCsvData = [...csvData];
-    updatedCsvData[selectedRowIndex].assignedProduct = productId;
+  const handleAssignProduct = ({ productId, categoryId, templateId }) => {
+    const currentRow = sortedCsvData[selectedRowIndex];
+    const key = currentRow?._groupKey || `${currentRow?.['product name'] || ''}||${currentRow?.['product description'] || ''}`.toLowerCase();
+    const updatedCsvData = csvData.map(r => {
+      const rkey = r._groupKey || `${r['product name'] || ''}||${r['product description'] || ''}`.toLowerCase();
+      if (rkey !== key) return r;
+      return { ...r, assignedProduct: productId, assignedCategoryId: categoryId || '', assignedContainerId: templateId || '' };
+    });
     setCsvData(updatedCsvData);
     setAssignModalOpen(false);
   };
@@ -131,6 +149,49 @@ const Inventory = ({ onImport, products, categories, onAddProduct, onInventorySa
     return list;
   }, [csvData]);
 
+  // Keep original CSV text/name for storage on import
+  const [parsedCsvText, setParsedCsvText] = useState('');
+  const [parsedCsvName, setParsedCsvName] = useState('');
+
+  const handleUseSample = async () => {
+    try {
+      // In dev/build, CRA serves files in /public at root
+      const res = await fetch('/whatnot_orders_with_skus.csv', { cache: 'no-store' });
+      if (!res.ok) throw new Error('HTTP '+res.status);
+      const text = await res.text();
+      setParsedCsvName('whatnot_orders_with_skus.csv');
+      setParsedCsvText(text);
+      Papa.parse(text, {
+        header: true,
+        skipEmptyLines: true,
+        complete: (results) => {
+          const grouped = new Map();
+          const normalizeName = (s) => s.replace(/\s*#\d+\s*$/i, '').replace(/\s{2,}/g, ' ').trim();
+          for (const raw of results.data) {
+            const nameRaw = (raw['product name'] ?? raw['Product Name'] ?? '').toString();
+            const name = normalizeName(nameRaw);
+            const desc = (raw['product description'] ?? raw['Product Description'] ?? '').toString().trim();
+            const qtyNum = parseInt(raw['product quantity'] ?? raw['Product Quantity'] ?? raw['quantity'], 10);
+            const qty = Number.isFinite(qtyNum) ? qtyNum : 0;
+            const sku = (raw['sku'] ?? raw['SKU'] ?? '').toString().trim();
+            const key = `${name}||${desc}`.toLowerCase();
+            if (!grouped.has(key)) {
+              grouped.set(key, { ...raw, _groupKey: key, sku, 'product name': name, 'product description': desc, 'product quantity': qty, assignedProduct: null });
+            } else {
+              const acc = grouped.get(key);
+              acc['product quantity'] = (parseInt(acc['product quantity'], 10) || 0) + qty;
+              if ((!acc.sku || acc.sku.length === 0) && sku) acc.sku = sku;
+            }
+          }
+          setCsvData(Array.from(grouped.values()));
+        },
+      });
+    } catch (e) {
+      console.error('Failed to load sample CSV', e);
+      alert('Could not load sample CSV from /whatnot_orders_with_skus.csv');
+    }
+  };
+
   return (
     <>
       <div className="inventory-container">
@@ -162,19 +223,27 @@ const Inventory = ({ onImport, products, categories, onAddProduct, onInventorySa
                 </button>
               </div>
               <div className="file-actions">
-                <label className="btn-file">
-                  <input type="file" accept=".csv" onChange={handleFileChange} hidden />
-                  Choose CSV
-                </label>
+                <div className="btn-file-menu">
+                  <button type="button" className="btn-file" onClick={() => setShowFileMenu(v => !v)}>Choose CSV ▾</button>
+                  {showFileMenu && (
+                    <div className="file-menu">
+                      <button type="button" className="file-menu-item" onClick={() => { setShowFileMenu(false); fileInputRef.current?.click(); }}>Upload file…</button>
+                      <button type="button" className="file-menu-item" onClick={() => { setShowFileMenu(false); handleUseSample(); }}>Use sample</button>
+                    </div>
+                  )}
+                  <input ref={fileInputRef} type="file" accept=".csv" onChange={handleFileChange} hidden />
+                </div>
                 <button className="btn-primary" onClick={handleParse} disabled={!file}>Parse CSV</button>
                 <button
                   className="btn-primary"
-                  onClick={() => handleInventoryUpdate(onImport, sortedCsvData)}
+                  onClick={() => handleInventoryUpdate(onImport, { rows: sortedCsvData, file: { name: parsedCsvName, text: parsedCsvText } })}
                   disabled={(sortedCsvData || []).length === 0}
                 >
                   Import
                 </button>
-                {file && <span className="file-name" title={file.name}>{file.name}</span>}
+                {(file || parsedCsvName) && (
+                  <span className="file-name" title={file?.name || parsedCsvName}>{file?.name || parsedCsvName}</span>
+                )}
               </div>
               
               <div className="table-container">
@@ -189,52 +258,67 @@ const Inventory = ({ onImport, products, categories, onAddProduct, onInventorySa
                     </tr>
                   </thead>
                   <tbody>
-                    {sortedCsvData.map((row, index) => {
-                      const productName = row['product name'] ?? row['Product Name'] ?? '';
-                      const productDescription = row['product description'] ?? row['Product Description'] ?? '';
-                      const productQuantity = row['product quantity'] ?? row['Product Quantity'] ?? '';
-                      const sku = row['sku'] ?? row['SKU'] ?? '';
-                      return (
-                        <tr key={index}>
-                          <td>
-                            <div className="action-cell">
-                              {row.assignedProduct ? (
-                                <span className="assigned-indicator" title={products[row.assignedProduct]?.flavor || 'Assigned'}>✅</span>
-                              ) : (
+                    {(() => {
+                      const hasSku = (r) => (r['sku'] ?? r['SKU'] ?? '').toString().trim().length > 0;
+                      const firstWithSkuIndex = sortedCsvData.findIndex(hasSku);
+                      const headerRow = (key, label) => (<tr key={key} className="section-row"><td colSpan={5}>{label}</td></tr>);
+                      const rows = [];
+                      if (firstWithSkuIndex === 0) {
+                        rows.push(headerRow('withsku-top', 'With SKU'));
+                      } else if (firstWithSkuIndex > 0 || firstWithSkuIndex === -1) {
+                        rows.push(headerRow('nosku-top', 'Unassigned (no SKU)'));
+                      }
+                      sortedCsvData.forEach((row, index) => {
+                        if (index === firstWithSkuIndex && firstWithSkuIndex > 0) {
+                          rows.push(headerRow('withsku', 'With SKU'));
+                        }
+                        const productName = row['product name'] ?? row['Product Name'] ?? '';
+                        const productDescription = row['product description'] ?? row['Product Description'] ?? '';
+                        const productQuantity = row['product quantity'] ?? row['Product Quantity'] ?? '';
+                        const sku = row['sku'] ?? row['SKU'] ?? '';
+                        rows.push(
+                          <tr key={(row._groupKey || productName + productDescription) + ':' + index}>
+                            <td>
+                              <div className="action-cell">
+                                {row.assignedProduct ? (
+                                  <span className="assigned-indicator" title={products[row.assignedProduct]?.flavor || 'Assigned'}>✅</span>
+                                ) : (
+                                  <button
+                                    className="icon-button assign"
+                                    title="Assign / Edit"
+                                    aria-label="Assign / Edit"
+                                    onClick={() => handleOpenAssignModal(index)}
+                                  >
+                                    <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
+                                      <path d="M12 20h9" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                                      <path d="M16.5 3.5l4 4L7 21l-4 1 1-4L16.5 3.5z" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"/>
+                                    </svg>
+                                  </button>
+                                )}
                                 <button
                                   className="icon-button assign"
-                                  title="Assign / Edit"
-                                  aria-label="Assign / Edit"
-                                  onClick={() => handleOpenAssignModal(index)}
+                                  title="Remove row"
+                                  aria-label="Remove row"
+                                  onClick={() => handleRemoveRow(index)}
                                 >
                                   <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
-                                    <path d="M12 20h9" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                                    <path d="M16.5 3.5l4 4L7 21l-4 1 1-4L16.5 3.5z" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"/>
+                                    <path d="M3 6h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                                    <path d="M8 6v-2a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" fill="none" stroke="currentColor" strokeWidth="2"/>
+                                    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"/>
+                                    <path d="M10 11v6M14 11v6" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
                                   </svg>
                                 </button>
-                              )}
-                              <button
-                                className="icon-button assign"
-                                title="Remove row"
-                                aria-label="Remove row"
-                                onClick={() => handleRemoveRow(index)}
-                              >
-                                <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
-                                  <path d="M3 6h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                                  <path d="M8 6v-2a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" fill="none" stroke="currentColor" strokeWidth="2"/>
-                                  <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"/>
-                                  <path d="M10 11v6M14 11v6" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                                </svg>
-                              </button>
-                            </div>
-                          </td>
-                          <td>{sku}</td>
-                          <td>{productQuantity}</td>
-                          <td>{productName}</td>
-                          <td>{productDescription}</td>
-                        </tr>
-                      );
-                    })}
+                              </div>
+                            </td>
+                            <td>{sku}</td>
+                            <td>{productQuantity}</td>
+                            <td>{productName}</td>
+                            <td>{productDescription}</td>
+                          </tr>
+                        );
+                      });
+                      return rows;
+                    })()}
                   </tbody>
                 </table>
               </div>
@@ -274,12 +358,17 @@ const Inventory = ({ onImport, products, categories, onAddProduct, onInventorySa
         <AssignProductModal
           onClose={() => setAssignModalOpen(false)}
           products={products}
+          categories={categories}
+          row={sortedCsvData[selectedRowIndex]}
           onAssign={handleAssignProduct}
+          onAddNewProduct={() => { setAssignModalOpen(false); setAddProductModalOpen(true); }}
         />
       )}
       {isAddProductModalOpen && (
         <AddProductModal
           categories={categories}
+          products={products}
+          canDeleteCategory={true}
           onClose={() => setAddProductModalOpen(false)}
           onSubmit={handleAddNewProduct}
           onDataRefresh={() => {}}
@@ -293,7 +382,7 @@ const Inventory = ({ onImport, products, categories, onAddProduct, onInventorySa
               <button type="button" className="close-button" onClick={closeHistoryModal}>×</button>
             </div>
             <div className="modal-body">
-              <InventoryHistory refresh={refreshHistory} showTitle={false} />
+              <InventoryHistory refresh={refreshHistory} showTitle={false} onOpenCsv={(id) => setCsvViewer({ open: true, id })} />
             </div>
           </div>
         </div>
@@ -303,5 +392,12 @@ const Inventory = ({ onImport, products, categories, onAddProduct, onInventorySa
 };
 
 export default Inventory;
+
+
+
+
+
+
+
 
 

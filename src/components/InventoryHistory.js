@@ -3,7 +3,7 @@ import { db } from '../firebase';
 import { collection, getDocs, query, orderBy } from 'firebase/firestore';
 import './InventoryHistory.css';
 
-const InventoryHistory = ({ refresh, showTitle = true }) => {
+const InventoryHistory = ({ refresh, showTitle = true, onOpenCsv }) => {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -66,7 +66,15 @@ const InventoryHistory = ({ refresh, showTitle = true }) => {
                 <td>{entry.productName}</td>
                 <td>{entry.change}</td>
                 <td>{renderDetails(entry.details)}</td>
-                <td>{entry.timestamp?.toDate().toLocaleString()}</td>
+                <td>
+                  {entry.fileId && onOpenCsv ? (
+                    <button className="linklike" onClick={() => onOpenCsv(entry.fileId)}>
+                      {entry.timestamp?.toDate().toLocaleString()}
+                    </button>
+                  ) : (
+                    entry.timestamp?.toDate().toLocaleString()
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>

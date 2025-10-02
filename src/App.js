@@ -227,25 +227,62 @@ function App() {
   };
 
   const handleAddProduct = async ({ category: categoryName, flavor, categorySku, flavorSku }) => {
-    let categoryId = Object.values(categories).find(cat => cat.name.toLowerCase() === categoryName.toLowerCase())?.id;
+    const norm = (s) => (s || '').toString().trim().toLowerCase();
+    const base = (s) => {
+      const n = norm(s);
+      return n.endsWith('s') ? n.slice(0, -1) : n;
+    };
+    const existing = Object.values(categories).find(cat => base(cat.name) === base(categoryName));
+    let categoryId = existing?.id;
+    const catSku = (categorySku || '').toUpperCase().trim();
     if (!categoryId) {
-      const newCategoryDoc = await addDoc(collection(db, "categories"), { name: categoryName, sku: categorySku, containerTemplates: [] });
+      const newCategoryDoc = await addDoc(collection(db, "categories"), { name: categoryName, sku: catSku, containerTemplates: [] });
       categoryId = newCategoryDoc.id;
+    } else {
+      const updates = {};
+      if (catSku && (existing.sku || '') !== catSku) updates.sku = catSku;
+      if (existing.name !== categoryName && categoryName) updates.name = categoryName;
+      if (Object.keys(updates).length) {
+        await updateDoc(doc(db, "categories", categoryId), updates);
+      }
     }
     await addDoc(collection(db, "products"), { categoryId: categoryId, flavor: flavor, flavorSku: flavorSku, containerInventory: [] });
     handleCloseModal();
     fetchData();
   };
 
-  const handleImport = async (data) => {
+  const handleImport = async (payload) => {
+    const rows = Array.isArray(payload) ? payload : payload?.rows || [];
+    const fileInfo = Array.isArray(payload) ? null : payload?.file || null;
     const batch = writeBatch(db);
+    let fileRefId = null;
 
-    for (const row of data) {
+    if (fileInfo?.text) {
+      try {
+        const fileDocRef = await addDoc(collection(db, 'csv_imports'), {
+          name: fileInfo.name || 'upload.csv',
+          content: fileInfo.text,
+          timestamp: serverTimestamp(),
+        });
+        fileRefId = fileDocRef.id;
+      } catch (e) {
+        console.error('Failed to store CSV file', e);
+      }
+    }
+
+    for (const row of rows) {
       if (row.assignedProduct) {
         const product = Object.values(products).find(p => p.id === row.assignedProduct);
         if (product) {
           const category = categories[product.categoryId];
-          const container = category.containerTemplates.find(ct => ct.sku === row.sku.split('-').pop());
+          let container = null;
+          if (row.assignedContainerId) {
+            container = (category.containerTemplates || []).find(ct => ct.id === row.assignedContainerId);
+          }
+          if (!container) {
+            const skuTail = (row.sku || '').toString().split('-').pop();
+            container = (category.containerTemplates || []).find(ct => ct.sku === skuTail);
+          }
           if (container) {
             const newInventory = [...(product.containerInventory || [])];
             const inventoryIndex = newInventory.findIndex(inv => inv.templateId === container.id);
@@ -265,6 +302,7 @@ function App() {
               change: 'CSV Import',
               details: row,
               timestamp: serverTimestamp(),
+              fileId: fileRefId || null,
             });
           }
         }
@@ -360,10 +398,10 @@ function App() {
           onManageContainers={openContainers}
         />
       )}
-      {activeModal === 'editProduct' && ( <AddProductModal categories={categories} onClose={() => handleOpenModal('manageProduct')} onSubmit={handleProductEdit} productToEdit={selectedProduct} categoryToEdit={selectedCategory}/>)}
+      {activeModal === 'editProduct' && ( <AddProductModal categories={categories} products={products} canDeleteCategory={activeTab === 'Inventory'} onClose={() => handleOpenModal('manageProduct')} onSubmit={handleProductEdit} onDataRefresh={fetchData} productToEdit={selectedProduct} categoryToEdit={selectedCategory}/>)}
 
       <button className="add-product-btn" onClick={() => handleOpenModal('addProduct') }>+</button>
-      {activeModal === 'addProduct' && ( <AddProductModal categories={categories} onClose={closeModalAndProduct} onSubmit={handleAddProduct} onDataRefresh={fetchData} /> )}
+      {activeModal === 'addProduct' && ( <AddProductModal categories={categories} products={products} canDeleteCategory={activeTab === 'Inventory'} onClose={closeModalAndProduct} onSubmit={handleAddProduct} onDataRefresh={fetchData} /> )}
     </div>
   );
 }
