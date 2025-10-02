@@ -8,6 +8,8 @@ import CategoryContainersModal from './CategoryContainersModal';
 const AddProductModal = ({ categories, onClose, onSubmit, onDataRefresh, productToEdit, categoryToEdit }) => {
   const [categoryInput, setCategoryInput] = useState('');
   const [flavor, setFlavor] = useState('');
+  const [categorySku, setCategorySku] = useState('');
+  const [flavorSku, setFlavorSku] = useState('');
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [isContainersModalOpen, setIsContainersModalOpen] = useState(false);
   const isEditMode = !!productToEdit;
@@ -15,13 +17,18 @@ const AddProductModal = ({ categories, onClose, onSubmit, onDataRefresh, product
   useEffect(() => {
     if (isEditMode) {
       setFlavor(productToEdit.flavor);
+      setFlavorSku(productToEdit.flavorSku || '');
       setCategoryInput(categoryToEdit?.name || '');
+      setCategorySku(categoryToEdit?.sku || '');
     }
   }, [isEditMode, productToEdit, categoryToEdit]);
   
   useEffect(() => {
     const foundCategory = Object.values(categories).find(cat => cat.name?.toLowerCase() === categoryInput?.toLowerCase());
     setSelectedCategory(foundCategory || null);
+    if (foundCategory) {
+      setCategorySku(foundCategory.sku);
+    }
   }, [categoryInput, categories]);
 
   const handleSubmit = (e) => {
@@ -30,7 +37,12 @@ const AddProductModal = ({ categories, onClose, onSubmit, onDataRefresh, product
       alert('Please fill out both category and flavor.');
       return;
     }
-    onSubmit({ category: categoryInput.trim(), flavor: flavor.trim() });
+    onSubmit({
+      category: categoryInput.trim(),
+      flavor: flavor.trim(),
+      categorySku: categorySku.trim(),
+      flavorSku: flavorSku.trim(),
+    });
   };
 
   const handleSaveContainers = async (newPackageOptions) => {
@@ -58,19 +70,30 @@ const AddProductModal = ({ categories, onClose, onSubmit, onDataRefresh, product
             <button type="button" onClick={onClose} className="close-button">&times;</button>
           </div>
           <div className="modal-body">
-            <div className="form-group">
-              <label htmlFor="category">Category</label>
-              <div className="category-input-group">
+            <div className="category-group">
+              <div className="form-group">
+                <label htmlFor="category">Category</label>
                 <input id="category" list="category-options" value={categoryInput} onChange={(e) => setCategoryInput(e.target.value)} placeholder="Select or Type a Category" />
                 <datalist id="category-options">
                   {Object.values(categories).map(cat => ( <option key={cat.id} value={cat.name} /> ))}
                 </datalist>
-                <button type="button" className="manage-btn" disabled={!selectedCategory} onClick={() => setIsContainersModalOpen(true)}>Manage Containers</button>
+              </div>
+              <button type="button" className="manage-btn" disabled={!selectedCategory} onClick={() => setIsContainersModalOpen(true)}>Manage Containers</button>
+              <div className="form-group category-sku-group">
+                <label htmlFor="category-sku">Category SKU</label>
+                <input id="category-sku" type="text" value={categorySku} onChange={(e) => setCategorySku(e.target.value)} placeholder="e.g., SK" />
               </div>
             </div>
             <div className="form-group">
               <label htmlFor="flavor">Flavor</label>
               <input id="flavor" type="text" value={flavor} onChange={(e) => setFlavor(e.target.value)} placeholder="e.g., Blue Raspberry" />
+            </div>
+            <div className="form-group">
+              <label htmlFor="flavor-sku">Flavor SKU</label>
+              <div className="flavor-sku-group">
+                <span className="sku-prefix">{categorySku}-</span>
+                <input id="flavor-sku" type="text" value={flavorSku} onChange={(e) => setFlavorSku(e.target.value)} placeholder="e.g., BLURAS" />
+              </div>
             </div>
           </div>
           <div className="modal-footer">

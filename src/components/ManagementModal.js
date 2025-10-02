@@ -124,10 +124,16 @@ const ManagementModal = ({ product, category, onUpdate, onDeleteBatches, onClose
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal-content wide" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
-          <h2>
-            Manage: {category?.name} {product.flavor}
-            <button className="icon-btn" onClick={() => onOpenModal('editProduct')}><FiEdit /></button> 
-          </h2>
+          <div class="modal-header-content">
+            <h2>
+              Manage: {category?.name} {product.flavor}
+            </h2>
+            <div class="header-sku-display">
+              <span class="sku-label">SKU:</span>
+              <span class="sku-display">{category?.sku}-{product.flavorSku}</span>
+              <button className="icon-btn" onClick={() => onOpenModal('editProduct')}><FiEdit /></button> 
+            </div>
+          </div>
           <button onClick={onClose} className="close-button">&times;</button>
         </div>
         <div className="modal-body">
@@ -146,7 +152,12 @@ const ManagementModal = ({ product, category, onUpdate, onDeleteBatches, onClose
               <h4>Containers <button className="icon-btn" onClick={() => onOpenModal('containers')}><FaCog /></button></h4>
               <ul className="package-list">
                 {product?.packageOptions?.length > 0 ? (
-                  product.packageOptions.map(opt => <li key={opt.id}>{opt.name} ({opt.weightOz} oz) - <span>{opt.quantity || 0}</span></li>)
+                  product.packageOptions.map(opt => 
+                    <li key={opt.id}>
+                      <div>{opt.name} ({opt.weightOz} oz) - {opt.quantity || 0}</div>
+                      <div className="sku-display">{category?.sku}-{product.flavorSku}-{opt.sku}</div>
+                    </li>
+                  )
                 ) : (<li>No container templates.</li>)}
               </ul>
             </div>

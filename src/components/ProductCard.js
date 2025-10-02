@@ -48,7 +48,7 @@ const ProductCard = ({ product, category, onClick }) => {
       <div className="striped-bar" style={stripedBarStyle}></div>
       <div className="card-background" style={cardBackgroundStyle}></div>
       <div className="product-info">
-        <h3 className="product-flavor">{category?.name} {product.flavor}</h3>
+        <h3 className="product-flavor">{category?.name} {product.flavor} <span className="sku-display">{category?.sku}-{product.flavorSku}</span></h3>
       </div>
       <div className="product-status">
         <span>{formatInventory()}</span>

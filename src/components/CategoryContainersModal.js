@@ -7,12 +7,14 @@ const CategoryContainersModal = ({ category, onSave, onClose }) => {
   const [packageOptions, setPackageOptions] = useState(category.containerTemplates || []);
   const [newName, setNewName] = useState('');
   const [newWeight, setNewWeight] = useState('');
+  const [newSku, setNewSku] = useState('');
   const [editingOptionId, setEditingOptionId] = useState(null);
 
   const handleEditClick = (option) => {
     setEditingOptionId(option.id);
     setNewName(option.name);
     setNewWeight(option.weightOz);
+    setNewSku(option.sku || '');
   };
 
   const handleFormSubmit = () => {
@@ -23,7 +25,7 @@ const CategoryContainersModal = ({ category, onSave, onClose }) => {
     if (editingOptionId) {
       const updatedOptions = packageOptions.map(opt => 
         opt.id === editingOptionId 
-          ? { ...opt, name: newName, weightOz: parseFloat(newWeight) } 
+          ? { ...opt, name: newName, weightOz: parseFloat(newWeight), sku: newSku } 
           : opt
       );
       setPackageOptions(updatedOptions);
@@ -31,7 +33,8 @@ const CategoryContainersModal = ({ category, onSave, onClose }) => {
       const newOption = {
         id: `pkg_${newName.toLowerCase().replace(/\s+/g, '_')}`,
         name: newName,
-        weightOz: parseFloat(newWeight)
+        weightOz: parseFloat(newWeight),
+        sku: newSku
       };
       setPackageOptions([...packageOptions, newOption]);
     }
@@ -42,6 +45,7 @@ const CategoryContainersModal = ({ category, onSave, onClose }) => {
     setEditingOptionId(null);
     setNewName('');
     setNewWeight('');
+    setNewSku('');
   };
 
   const handleSave = () => {
@@ -62,7 +66,7 @@ const CategoryContainersModal = ({ category, onSave, onClose }) => {
             ) : (
               packageOptions.map(opt => (
                 <div key={opt.id} className="option-item" onClick={() => handleEditClick(opt)}>
-                  <span>{opt.name} ({opt.weightOz} oz)</span>
+                  <span>{opt.name} ({opt.weightOz} oz) - SKU: {opt.sku}</span>
                 </div>
               ))
             )}
@@ -72,6 +76,7 @@ const CategoryContainersModal = ({ category, onSave, onClose }) => {
             <div className="form-inputs">
               <input type="text" value={newName} onChange={e => setNewName(e.target.value)} placeholder="Template Name (e.g., 4oz Bag)" />
               <input type="number" value={newWeight} onChange={e => setNewWeight(e.target.value)} placeholder="Weight in Oz" />
+              <input type="text" value={newSku} onChange={e => setNewSku(e.target.value)} placeholder="SKU Suffix (e.g., 4)" />
             </div>
             <div className="form-actions-inline">
               {editingOptionId && (<button onClick={cancelEdit} className="cancel-edit-btn">Cancel</button>)}

@@ -1,4 +1,3 @@
-// src/App.js
 import { useState, useEffect, useMemo } from 'react';
 import './App.css';
 import { db } from './firebase';
@@ -11,6 +10,7 @@ import FinalCountModal from './components/FinalCountModal';
 import VerificationModal from './components/VerificationModal';
 import CategoryTemplateModal from './components/CategoryContainersModal'; // Renamed for clarity
 import EditInventoryModal from './components/EditInventoryModal';
+import ImportCSVModal from './components/ImportCSVModal';
 
 function App() {
   const [products, setProducts] = useState({});
@@ -23,6 +23,7 @@ function App() {
   const [tempFinalCount, setTempFinalCount] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategoryId, setSelectedCategoryId] = useState('');
+  const [isImportModalOpen, setImportModalOpen] = useState(false);
 
   const handleOpenModal = (modalName, payload = null) => {
     setModalPayload(payload);
@@ -164,14 +165,19 @@ function App() {
     }
   };
 
-  const handleProductEdit = async ({ category: categoryName, flavor }) => {
+  const handleProductEdit = async ({ category: categoryName, flavor, categorySku, flavorSku }) => {
     const product = products[selectedProductId];
-    let categoryId = Object.values(categories).find(cat => cat.name.toLowerCase() === categoryName.toLowerCase())?.id;
+    let category = Object.values(categories).find(cat => cat.name.toLowerCase() === categoryName.toLowerCase());
+    let categoryId = category?.id;
+
     if (!categoryId) {
-        const newCategoryDoc = await addDoc(collection(db, "categories"), { name: categoryName, containerTemplates: [] });
+        const newCategoryDoc = await addDoc(collection(db, "categories"), { name: categoryName, sku: categorySku, containerTemplates: [] });
         categoryId = newCategoryDoc.id;
+    } else if (category.sku !== categorySku) {
+        await updateDoc(doc(db, "categories", categoryId), { sku: categorySku });
     }
-    await updateDoc(doc(db, "products", product.id), { flavor, categoryId });
+
+    await updateDoc(doc(db, "products", product.id), { flavor, categoryId, flavorSku });
     fetchData();
     handleOpenModal('manageProduct');
   };
@@ -196,15 +202,49 @@ function App() {
     handleOpenModal('manageProduct');
   };
 
-  const handleAddProduct = async ({ category: categoryName, flavor }) => {
+  const handleAddProduct = async ({ category: categoryName, flavor, categorySku, flavorSku }) => {
     let categoryId = Object.values(categories).find(cat => cat.name.toLowerCase() === categoryName.toLowerCase())?.id;
     if (!categoryId) {
-      const newCategoryDoc = await addDoc(collection(db, "categories"), { name: categoryName, containerTemplates: [] });
+      const newCategoryDoc = await addDoc(collection(db, "categories"), { name: categoryName, sku: categorySku, containerTemplates: [] });
       categoryId = newCategoryDoc.id;
     }
-    await addDoc(collection(db, "products"), { categoryId: categoryId, flavor: flavor, containerInventory: [] });
+    await addDoc(collection(db, "products"), { categoryId: categoryId, flavor: flavor, flavorSku: flavorSku, containerInventory: [] });
     handleCloseModal();
     fetchData();
+  };
+
+  const handleImport = async (data) => {
+    const batch = writeBatch(db);
+
+    for (const row of data) {
+      if (row.assignedProduct) {
+        const product = Object.values(products).find(p => p.id === row.assignedProduct);
+        if (product) {
+          const category = categories[product.categoryId];
+          const container = category.containerTemplates.find(ct => ct.sku === row.sku.split('-').pop());
+          if (container) {
+            const newInventory = [...(product.containerInventory || [])];
+            const inventoryIndex = newInventory.findIndex(inv => inv.templateId === container.id);
+            const quantity = parseInt(row['product quantity'], 10);
+
+            if (inventoryIndex > -1) {
+              newInventory[inventoryIndex].quantity -= quantity;
+            } else {
+              console.warn(`Product ${product.flavor} with container ${container.name} not found in inventory.`);
+            }
+            batch.update(doc(db, "products", product.id), { containerInventory: newInventory });
+          }
+        }
+      }
+    }
+
+    try {
+      await batch.commit();
+      fetchData();
+      setImportModalOpen(false);
+    } catch (error) {
+      console.error("Error importing data: ", error);
+    }
   };
 
   const selectedProduct = displayList.find(p => p.id === selectedProductId);
@@ -217,7 +257,10 @@ function App() {
 
   return (
     <div className="App">
-      <header className="header"><h1>SoSTrack</h1></header>
+      <header className="header">
+        <h1>SoSTrack</h1>
+        <button onClick={() => setImportModalOpen(true)}>Import CSV</button>
+      </header>
       <nav className="tab-navigation">
         <button className="tab-button active">Production</button>
         <button className="tab-button">Packaging</button>
@@ -250,6 +293,7 @@ function App() {
 
       <button className="add-product-btn" onClick={() => handleOpenModal('addProduct') }>+</button>
       {activeModal === 'addProduct' && ( <AddProductModal categories={categories} onClose={closeModalAndProduct} onSubmit={handleAddProduct} onDataRefresh={fetchData} /> )}
+      {isImportModalOpen && <ImportCSVModal onClose={() => setImportModalOpen(false)} onImport={handleImport} products={products} categories={categories} onAddProduct={handleAddProduct} />}
     </div>
   );
 }

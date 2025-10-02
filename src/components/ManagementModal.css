@@ -47,7 +47,15 @@
 .stat-item span { display: block; font-size: 1.5em; font-weight: bold; color: #007bff; }
 .stat-item small { color: #6c757d; }
 .package-list { list-style: none; padding: 0; margin: 0; }
-.package-list li { background-color: #f8f9fa; padding: 8px 12px; border-radius: 4px; margin-bottom: 5px; }
+.package-list li {
+  background-color: #f8f9fa;
+  padding: 8px 12px;
+  border-radius: 4px;
+  margin-bottom: 5px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
 
 .icon-btn {
   background: none; border: none; color: #6c757d; cursor: pointer;
@@ -104,6 +112,29 @@
 .status-package { background-color: #ffc107; color: #333; }
 .status-ready { background-color: #28a745; }
 .status-completed { background-color: #6c757d; }
+
+.sku-label {
+  font-size: 0.6em;
+  color: #6c757d;
+}
+
+.sku-display {
+  font-size: 0.8em;
+  color: #6c757d;
+}
+
+.modal-header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.header-sku-display {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
 
 @keyframes slide-down {
   from { transform: translateY(-50px); opacity: 0; }
