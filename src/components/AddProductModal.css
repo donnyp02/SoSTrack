@@ -1,4 +1,6 @@
 /* src/components/AddProductModal.css */
+
+/* ===== Your original base styles ===== */
 .form-group {
     margin-bottom: 15px;
 }
@@ -79,3 +81,109 @@
     border-radius: 5px;
     cursor: pointer;
 }
+
+/* =======================================================================
+   OVERRIDES: make SKU rows smaller + indented and placed underneath parent
+   (keeps all your original styles; only adjusts layout/sizing where needed)
+   ======================================================================= */
+
+/* Turn the top group into a grid: [Category] [Manage]  on row 1 */
+.modal-content .category-group {
+  display: grid !important;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  align-items: end;
+}
+
+/* Put Category SKU on a new row under Category; make it smaller + indented */
+.modal-content .category-sku-group {
+  grid-column: 1 / 2 !important;   /* sits under Category column */
+  width: auto !important;           /* cancel original fixed width */
+  max-width: 310px !important;      /* narrower than main input */
+  margin-left: 22px !important;     /* visual indent */
+  margin-top: 8px !important;       /* small gap below Category */
+}
+
+.modal-content .category-sku-group label {
+  font-size: 0.9rem;
+  color: #66707a;
+  font-weight: 700;
+  margin-bottom: 6px;
+  padding-left: 6px;                /* subtle label indent */
+  display: inline-block;
+}
+
+.modal-content .category-sku-group input {
+  height: 32px !important;
+  line-height: 32px !important;
+  padding: 6px 10px !important;
+  font-size: 0.95rem;
+  border-radius: 6px;
+  border: 1px solid #cfd3d7;
+  background: #fff;
+}
+
+/* Place Flavor SKU under Flavor; same smaller + indented treatment */
+.modal-content .form-group label[for="flavor-sku"] {
+  display: inline-block;
+  margin-top: 12px;
+  margin-left: 22px;                /* align with input indent */
+  font-size: 0.9rem;
+  color: #66707a;
+  font-weight: 700;
+  padding-left: 6px;
+  margin-bottom: 6px;
+}
+
+.modal-content .flavor-sku-group {
+  margin-left: 22px !important;     /* indent the whole row */
+  max-width: 540px !important;      /* narrower than full Flavor field */
+  display: grid;
+  grid-template-columns: auto 1fr;  /* [prefix chip] [input] */
+  gap: 8px;
+  align-items: center;
+}
+
+.modal-content .flavor-sku-group input {
+  height: 32px !important;
+  line-height: 32px !important;
+  padding: 6px 10px !important;
+  font-size: 0.95rem;
+  border-radius: 6px;
+  border: 1px solid #cfd3d7;
+}
+
+.modal-content .flavor-sku-group .sku-prefix {
+  height: 32px !important;
+  line-height: 32px !important;
+  padding: 0 10px;
+  min-width: 52px;
+  text-align: center;
+  color: #8a94a0;
+  background: #f4f6f8;
+  border: 1px solid #e2e6ea;
+  border-radius: 6px;
+  font-weight: 600;
+}
+
+/* Optional: if you switch Category to a <select>, add a caret */
+.selectlike {
+  appearance: none;
+  background-image:
+    linear-gradient(45deg, transparent 50%, #6b7680 50%),
+    linear-gradient(135deg, #6b7680 50%, transparent 50%),
+    linear-gradient(to right, #cfd3d7, #cfd3d7);
+  background-position:
+    calc(100% - 18px) calc(50% - 3px),
+    calc(100% - 12px) calc(50% - 3px),
+    calc(100% - 32px) 50%;
+  background-size: 6px 6px, 6px 6px, 1px 60%;
+  background-repeat: no-repeat;
+  cursor: pointer;
+}
+
+/* --- DEBUG (optional): uncomment these while testing to confirm overrides ---
+.modal-content .category-group      { outline: 2px dashed #69f !important; }
+.modal-content .category-sku-group  { outline: 2px dashed #f90 !important; }
+.modal-content .flavor-sku-group    { outline: 2px dashed #0a0 !important; }
+*/
