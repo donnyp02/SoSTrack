@@ -129,10 +129,10 @@
   margin: 0; font-size: .92rem; color: var(--text-muted); white-space: nowrap;
 }
 .modal-content .form-group#flavor-sku-wrap > .flavor-sku-group {
-  margin: 0; display: grid; grid-template-columns: auto 1fr; align-items: center; column-gap: var(--space-3);
+  margin: 20px 0 0 0; display: grid; grid-template-columns: auto 1fr; align-items: center; column-gap: var(--space-3);
 }
 
-/* Grey SKU prefix chip (the “-” or “SK-”) */
+/* Grey SKU prefix chip (the "-" or "SK-") */
 .modal-content .form-group#flavor-sku-wrap .flavor-sku-group .sku-prefix {
   height: 32px; line-height: 32px; padding: 0 10px; min-width: 52px; text-align: center;
   color: #8a94a0; background: var(--bg-muted); border: 1px solid var(--border);

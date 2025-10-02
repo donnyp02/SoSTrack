@@ -1,3 +1,4 @@
+// src/components/AddProductModal.js
 import React, { useState, useEffect } from 'react';
 import './AddProductModal.css';
 import { db } from '../firebase';
@@ -113,7 +114,7 @@ const AddProductModal = ({
                     {Object.values(categories).map((cat) => (
                       <option key={cat.id} value={cat.name}>{cat.name}</option>
                     ))}
-                    <option value="__NEW__">➕ New Category…</option>
+                    <option value="__NEW__">➕ Create New Category</option>
                   </select>
                 ) : (
                   <>

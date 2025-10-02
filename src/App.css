@@ -1,4 +1,4 @@
-/* src/App.css */
+﻿/* src/App.css */
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
@@ -103,3 +103,5 @@ body {
   border-radius: 4px;
   cursor: pointer;
 }
+.tab-navigation.tight { margin-bottom: 6px; }
+

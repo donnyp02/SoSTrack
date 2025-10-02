@@ -1,7 +1,20 @@
+// File > Preferences > Settings > (top-right {} icon)
 {
-    "piny.project_settings": {
-        "open-pages": [
-            "pinyfakepage.html"
-        ]
+  // make Git Bash your normal default
+  "terminal.integrated.defaultProfile.windows": "Git Bash",
+
+  // declare the Git Bash profile (adjust path if needed)
+  "terminal.integrated.profiles.windows": {
+    "Git Bash": {
+      "path": "C:\\Program Files\\Git\\bin\\bash.exe",
+      "args": ["-l"],
+      "icon": "terminal-bash"
     }
+  },
+
+  // *** most important: used by tasks/agents/debuggers ***
+  "terminal.integrated.automationProfile.windows": {
+    "path": "C:\\Program Files\\Git\\bin\\bash.exe",
+    "args": ["-l", "-c"]
+  }
 }

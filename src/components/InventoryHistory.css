@@ -1,0 +1,18 @@
+.inventory-history {
+    margin-top: 40px;
+}
+
+.inventory-history table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.inventory-history th, .inventory-history td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: left;
+}
+
+.inventory-history th {
+    background-color: #f2f2f2;
+}

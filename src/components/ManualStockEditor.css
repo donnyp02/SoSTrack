@@ -1,0 +1,49 @@
+.manual-stock-editor {
+    margin-top: 40px;
+}
+
+.product-inventory-list {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.product-inventory-item {
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 20px;
+}
+
+.product-inventory-item h3 {
+    margin-top: 0;
+}
+
+.inventory-inputs {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 15px;
+}
+
+.inventory-input-item {
+    display: flex;
+    flex-direction: column;
+}
+
+.inventory-input-item label {
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+.save-button {
+    margin-top: 20px;
+    padding: 10px 20px;
+    background-color: #28a745;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.save-button:hover {
+    background-color: #218838;
+}

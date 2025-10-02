@@ -1,148 +1,196 @@
 // src/components/EditInventoryModal.js
-import React, { useState, useEffect } from 'react';
-import './EditInventoryModal.css';
+import React, { useEffect, useMemo, useState } from "react";
+import "./AddProductModal.css"; // share the same modern styles as Add modal
 
-const EditInventoryModal = ({ product, onSave, onClose, onManageContainers = null }) => {
+/**
+ * Props
+ * - product: {
+ *     id, flavor, categoryId, packageOptions?: [{ id, name, weightOz, quantity? }]
+ *   }
+ * - categories: map/dict keyed by categoryId -> { id, name, sku, packageOptions? }
+ * - selectedCategory: optional category object already selected higher up
+ * - onManageContainers: (categoryObj) => void   // opens the category containers modal
+ * - onSave: (newInventoryArray) => void         // [{ templateId, quantity }]
+ * - onClose: () => void
+ */
+const EditInventoryModal = ({
+  product,
+  categories,
+  selectedCategory,
+  onManageContainers,
+  onSave,
+  onClose,
+}) => {
+  // ----- derive category name / sku robustly -----
+  const categoryFromMap =
+    product?.categoryId && categories ? categories[product.categoryId] : null;
+
+  const category = useMemo(
+    () => selectedCategory ?? categoryFromMap ?? null,
+    [selectedCategory, categoryFromMap]
+  );
+
+  const categoryName =
+    category?.name ??
+    product?.categoryName ?? // legacy fallback if present
+    product?.category ?? // legacy fallback if present
+    "";
+
+  const categorySku =
+    category?.sku ?? product?.categorySku ?? ""; // legacy fallback if present
+
+  // ----- inventory state comes from product.packageOptions -----
   const [inventory, setInventory] = useState([]);
 
   useEffect(() => {
-    if (product && product.packageOptions) {
-      const initialInventory = product.packageOptions.map((opt) => ({
+    if (product?.packageOptions?.length) {
+      const initial = product.packageOptions.map((opt) => ({
         ...opt,
-        quantity: opt.quantity || 0,
+        quantity: Number(opt.quantity) || 0,
       }));
-      setInventory(initialInventory);
+      setInventory(initial);
+    } else {
+      setInventory([]); // no templates on product/category
     }
   }, [product]);
 
+  // ----- interactions -----
   const handleQuantityChange = (index, value) => {
-    const newInventory = [...inventory];
-    newInventory[index].quantity = Math.max(0, Number(value));
-    setInventory(newInventory);
+    const next = [...inventory];
+    // clamp to non-negative integer
+    const n = Math.max(0, Number(value));
+    next[index].quantity = Number.isFinite(n) ? n : 0;
+    setInventory(next);
   };
 
-  const handleSave = () => {
-    const newInventoryForDb = inventory
-      .filter((item) => item.quantity > 0)
-      .map(({ id, quantity }) => ({
-        templateId: id,
-        quantity: Number(quantity),
+  const handleSave = (e) => {
+    e?.preventDefault?.();
+    // Only send items with quantity > 0 to keep data clean
+    const payload = inventory
+      .filter((i) => Number(i.quantity) > 0)
+      .map((i) => ({
+        templateId: i.id,
+        quantity: Number(i.quantity),
       }));
-
-    onSave(newInventoryForDb);
-    onClose();
+    onSave?.(payload);
+    onClose?.();
   };
 
-  const handleSubmit = (event) => {
-    event.preventDefault();
-    handleSave();
-  };
+  // If no product yet, don't render modal
+  if (!product) return null;
 
-  if (!product) {
-    return null;
-  }
-
-  const categoryName = product.categoryName || product.category || '';
-  const categorySku = product.categorySku || product.categoryPrefix || (typeof product.sku === 'string' ? product.sku.split('-')[0] : '');
-  const flavorName = product.flavor || '';
-  const flavorSku = product.flavorSku || '';
-  const skuPrefix = categorySku ? categorySku + '-' : '-';
-  const enableManageContainers = typeof onManageContainers === 'function';
+  const canManage = Boolean(onManageContainers && category);
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
-      <form className="modal-content" onClick={(e) => e.stopPropagation()} onSubmit={handleSubmit}>
+      <form
+        className="modal-content"
+        onClick={(e) => e.stopPropagation()}
+        onSubmit={handleSave}
+      >
         <div className="modal-header">
           <h2>Edit Inventory</h2>
-          <button type="button" onClick={onClose} className="close-button">&times;</button>
+          <button
+            type="button"
+            className="close-button"
+            onClick={onClose}
+            aria-label="Close"
+            title="Close"
+          >
+            &times;
+          </button>
         </div>
 
         <div className="modal-body">
+          {/* Category row (read-only) + Manage Containers */}
           <div className="category-group">
             <div className="form-group">
-              <label htmlFor="edit-category">Category</label>
-              <input
-                id="edit-category"
-                type="text"
-                value={categoryName}
-                placeholder="Category name"
-                disabled
-              />
+              <label>Category</label>
+              <input value={categoryName} readOnly />
             </div>
 
             <button
               type="button"
               className="manage-btn"
-              disabled={!enableManageContainers}
-              onClick={() => enableManageContainers && onManageContainers(product)}
+              disabled={!canManage}
+              onClick={() => onManageContainers?.(category)}
+              title={
+                canManage
+                  ? "Manage Containers"
+                  : "Select a valid category to manage containers"
+              }
             >
               Manage Containers
             </button>
 
             <div className="form-group category-sku-group">
-              <label htmlFor="edit-category-sku">Category SKU</label>
-              <input
-                id="edit-category-sku"
-                type="text"
-                value={categorySku}
-                placeholder="Category SKU"
-                disabled
-              />
+              <label htmlFor="category-sku">Category SKU</label>
+              <input id="category-sku" value={categorySku} readOnly />
             </div>
           </div>
 
+          {/* Flavor + Flavor SKU (read-only SKU prefix; you’re editing inventory here) */}
           <div className="tight-stack">
             <div className="form-group" id="flavor-group">
-              <label htmlFor="edit-flavor">Flavor</label>
+              <label htmlFor="flavor">Flavor</label>
               <input
-                id="edit-flavor"
-                type="text"
-                value={flavorName}
+                id="flavor"
+                value={product.flavor ?? ""}
+                readOnly
                 placeholder="Flavor"
-                disabled
               />
             </div>
 
             <div className="form-group" id="flavor-sku-wrap">
               <label htmlFor="flavor-sku">Flavor SKU</label>
               <div className="flavor-sku-group">
-                <span className="sku-prefix">{skuPrefix}</span>
+                <span className="sku-prefix">
+                  {categorySku ? `${categorySku}-` : "-"}
+                </span>
                 <input
                   id="flavor-sku"
-                  type="text"
-                  value={flavorSku}
-                  placeholder="Flavor SKU"
-                  disabled
+                  value={product.flavorSku ?? ""}
+                  readOnly
+                  placeholder="e.g., BLURAS"
                 />
               </div>
             </div>
           </div>
 
-          <h4>Container Inventory</h4>
-          {inventory.length > 0 ? (
-            inventory.map((item, index) => {
-              const inputId = 'inventory-' + (item.id || index);
-              const labelText = item.name + ' (' + item.weightOz + ' oz)';
-              return (
-                <div key={item.id || index} className="form-group">
-                  <label htmlFor={inputId}>{labelText}</label>
+          {/* Inventory editor */}
+          <div style={{ marginTop: 16 }}>
+            <h4 style={{ margin: "12px 0 8px 0" }}>Container Inventory</h4>
+
+            {inventory.length > 0 ? (
+              inventory.map((item, idx) => (
+                <div key={item.id} className="form-group">
+                  <label htmlFor={`qty-${item.id}`}>
+                    {item.name} {item.weightOz ? `(${item.weightOz} oz)` : ""}
+                  </label>
                   <input
-                    id={inputId}
+                    id={`qty-${item.id}`}
                     type="number"
-                    value={item.quantity}
-                    onChange={(e) => handleQuantityChange(index, e.target.value)}
+                    inputMode="numeric"
                     min="0"
+                    value={item.quantity}
+                    onChange={(e) => handleQuantityChange(idx, e.target.value)}
+                    placeholder="0"
                   />
                 </div>
-              );
-            })
-          ) : (
-            <p>No container types have been defined for this product's category.</p>
-          )}
+              ))
+            ) : (
+              <p style={{ color: "#5b6470" }}>
+                No container types have been defined for this product’s
+                category.
+              </p>
+            )}
+          </div>
         </div>
 
         <div className="modal-footer">
-          <button type="submit" className="add-btn">Save</button>
+          <button type="submit" className="add-btn">
+            Save Changes
+          </button>
         </div>
       </form>
     </div>

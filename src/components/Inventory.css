@@ -1,0 +1,236 @@
+﻿.inventory-container {
+    padding: 20px;
+}
+
+/* Sub-tabs that visually match the app's top tabs */
+.sub-tab-navigation {
+    display: flex;
+    justify-content: center;
+    border-bottom: 2px solid #ddd;
+    margin: 0 0 16px 0;
+}
+
+.sub-tab-button {
+    padding: 10px 20px;
+    font-size: 1.1em;
+    border: none;
+    background-color: transparent;
+    cursor: pointer;
+    color: #777;
+    margin-bottom: -2px; /* Align with bottom border */
+}
+
+.sub-tab-button.active {
+    font-weight: bold;
+    color: #007bff;
+    border-bottom: 2px solid #007bff;
+}
+
+/* Secondary action row under the sub-tabs */
+.inventory-sub-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin: 8px 0 16px;
+}
+
+.history-btn {
+    padding: 12px 18px;
+    border-radius: 10px;
+    border: 1px solid #0d6efd;
+    background: #0d6efd;
+    color: #fff;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .15s ease, transform .08s ease;
+}
+
+.history-btn:hover {
+    background: #0b61df;
+}
+
+.history-btn:active {
+    transform: translateY(1px);
+}
+
+.inventory-section {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+/* Small, unobtrusive action to the right of section title */
+.inventory-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 6px 0 8px;
+}
+.inventory-section-header h2 {
+    margin: 0;
+    font-size: 1.25rem;
+}
+
+.history-link {
+    padding: 4px 8px;
+    font-size: 0.9rem;
+    line-height: 1.2;
+    border: 1px solid #cfd3d7;
+    border-radius: 6px;
+    background: #fff;
+    color: #007bff;
+    cursor: pointer;
+}
+.history-link:hover {
+    background: #f7f9fc;
+}
+
+/* Minimal icon button for assignment */
+.icon-button {
+    border: 1px solid #cfd3d7;
+    background: #fff;
+    color: #1f2937;
+    padding: 4px 6px;
+    border-radius: 6px;
+    cursor: pointer;
+    line-height: 1;
+}
+.icon-button.assign {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px; /* tighter to fit two icons */
+}
+.icon-button:hover {
+    background: #f7f9fc;
+}
+.icon-button .icon {
+    width: 14px;
+    height: 14px;
+    display: block;
+}
+.action-cell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+.assigned-indicator {
+    font-size: 1rem;
+}
+
+.inventory-history-modal {
+    width: min(900px, 92vw);
+    max-height: 80vh;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+}
+
+.inventory-history-modal .modal-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0;
+}
+
+.file-input-container {
+    margin-bottom: 20px;
+}
+
+/* Modernized file + parse actions */
+.file-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 16px;
+}
+.btn-file {
+    display: inline-block;
+    padding: 10px 14px;
+    background: #fff;
+    border: 1px solid #cfd3d7;
+    border-radius: 8px;
+    font-weight: 600;
+    color: #1f2937;
+    cursor: pointer;
+}
+.btn-file:hover { background: #f7f9fc; }
+
+.btn-primary {
+    padding: 10px 14px;
+    background: #0d6efd;
+    border: 1px solid #0d6efd;
+    color: #fff;
+    border-radius: 8px;
+    font-weight: 700;
+    cursor: pointer;
+}
+.btn-primary:disabled {
+    background: #c7d7fe;
+    border-color: #c7d7fe;
+    color: #e8efff;
+    cursor: not-allowed;
+}
+.file-name {
+    color: #5b6470;
+    font-size: .95rem;
+    max-width: 40ch;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.table-container {
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+/* Fixed layout for precise column sizing in WhatNot import table */
+.whatnot-table {
+    table-layout: fixed;
+}
+.whatnot-table th, .whatnot-table td {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.whatnot-table th:nth-child(1), .whatnot-table td:nth-child(1) { /* Action */
+    width: 52px;
+    text-align: center;
+}
+.whatnot-table th:nth-child(2), .whatnot-table td:nth-child(2) { /* SKU */
+    width: 130px; /* reduced by ~30px */
+}
+.whatnot-table th:nth-child(3), .whatnot-table td:nth-child(3) { /* Qty */
+    width: 42px; /* 10px skinnier */
+    text-align: center;
+}
+.whatnot-table th:nth-child(4), .whatnot-table td:nth-child(4) { /* Name */
+    white-space: normal;
+}
+.whatnot-table th:nth-child(5), .whatnot-table td:nth-child(5) { /* Description */
+    white-space: normal;
+}
+
+th, td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: left;
+}
+
+th {
+    background-color: #f2f2f2;
+}
+
+.import-button-container {
+    margin-top: 20px;
+}
+
+/* Reduce dead space between top tabs and Inventory sub-tabs */
+.inventory-container {
+    padding-top: 0;
+}
