@@ -1,4 +1,3 @@
-// src/components/AddProductModal.js
 import React, { useState, useEffect } from 'react';
 import './AddProductModal.css';
 import { db } from '../firebase';
@@ -19,23 +18,18 @@ const AddProductModal = ({
   const [flavorSku, setFlavorSku] = useState('');
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [isContainersModalOpen, setIsContainersModalOpen] = useState(false);
+  const [useSelect, setUseSelect] = useState(true); // dropdown first
 
-  // UI: show a <select> first; allow "➕ New Category…" to switch to free-text input
-  const [useSelect, setUseSelect] = useState(true);
-
-  // Edit mode?
   const isEditMode = !!productToEdit;
 
-  // Seed fields when editing
   useEffect(() => {
     if (isEditMode) {
       setFlavor(productToEdit.flavor);
       setFlavorSku(productToEdit.flavorSku || '');
       setCategoryInput(categoryToEdit?.name || '');
       setCategorySku(categoryToEdit?.sku || '');
-      setUseSelect(!!categoryToEdit?.name); // if it’s an existing category, keep select mode
+      setUseSelect(!!categoryToEdit?.name);
     } else {
-      // ensure clean state when opening for add
       setCategoryInput('');
       setCategorySku('');
       setFlavor('');
@@ -45,15 +39,12 @@ const AddProductModal = ({
     }
   }, [isEditMode, productToEdit, categoryToEdit]);
 
-  // Derive selected category + auto-fill category SKU when picking an existing one
   useEffect(() => {
     const found = Object.values(categories).find(
       (cat) => cat.name?.toLowerCase() === categoryInput?.toLowerCase()
     );
     setSelectedCategory(found || null);
-    if (found) {
-      setCategorySku(found.sku || '');
-    }
+    if (found) setCategorySku(found.sku || '');
   }, [categoryInput, categories]);
 
   const handleSubmit = (e) => {
@@ -89,20 +80,14 @@ const AddProductModal = ({
   return (
     <>
       <div className="modal-backdrop" onClick={onClose}>
-        <form
-          className="modal-content"
-          onClick={(e) => e.stopPropagation()}
-          onSubmit={handleSubmit}
-        >
+        <form className="modal-content" onClick={(e) => e.stopPropagation()} onSubmit={handleSubmit}>
           <div className="modal-header">
             <h2>{isEditMode ? 'Edit Product' : 'Add New Product'}</h2>
-            <button type="button" onClick={onClose} className="close-button">
-              &times;
-            </button>
+            <button type="button" onClick={onClose} className="close-button">&times;</button>
           </div>
 
           <div className="modal-body">
-            {/* Category row: [Category Field] [Manage Containers] + Category SKU under Category */}
+            {/* Category row */}
             <div className="category-group">
               <div className="form-group">
                 <label htmlFor="category">Category</label>
@@ -115,7 +100,6 @@ const AddProductModal = ({
                     onChange={(e) => {
                       const val = e.target.value;
                       if (val === '__NEW__') {
-                        // switch to text input for a brand new category
                         setUseSelect(false);
                         setCategoryInput('');
                         setSelectedCategory(null);
@@ -125,13 +109,9 @@ const AddProductModal = ({
                       setCategoryInput(val);
                     }}
                   >
-                    <option value="" disabled>
-                      Select a Category
-                    </option>
+                    <option value="" disabled>Select a Category</option>
                     {Object.values(categories).map((cat) => (
-                      <option key={cat.id} value={cat.name}>
-                        {cat.name}
-                      </option>
+                      <option key={cat.id} value={cat.name}>{cat.name}</option>
                     ))}
                     <option value="__NEW__">➕ New Category…</option>
                   </select>
@@ -145,12 +125,7 @@ const AddProductModal = ({
                       placeholder="Type a Category"
                     />
                     <div style={{ marginTop: 6 }}>
-                      <button
-                        type="button"
-                        className="manage-btn"
-                        onClick={() => setUseSelect(true)}
-                        title="Back to list"
-                      >
+                      <button type="button" className="manage-btn" onClick={() => setUseSelect(true)}>
                         Back to List
                       </button>
                     </div>
@@ -179,29 +154,31 @@ const AddProductModal = ({
               </div>
             </div>
 
-            <div className="form-group">
-              <label htmlFor="flavor">Flavor</label>
-              <input
-                id="flavor"
-                type="text"
-                value={flavor}
-                onChange={(e) => setFlavor(e.target.value)}
-                placeholder="e.g., Blue Raspberry"
-              />
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="flavor-sku">Flavor SKU</label>
-              <div className="flavor-sku-group">
-                {/* Show '-' until a Category SKU exists */}
-                <span className="sku-prefix">{categorySku ? `${categorySku}-` : '-'}</span>
+            {/* TIGHT STACK: Flavor + Flavor SKU are controlled together */}
+            <div className="tight-stack">
+              <div className="form-group" id="flavor-group">
+                <label htmlFor="flavor">Flavor</label>
                 <input
-                  id="flavor-sku"
+                  id="flavor"
                   type="text"
-                  value={flavorSku}
-                  onChange={(e) => setFlavorSku(e.target.value)}
-                  placeholder="e.g., BLURAS"
+                  value={flavor}
+                  onChange={(e) => setFlavor(e.target.value)}
+                  placeholder="e.g., Blue Raspberry"
                 />
+              </div>
+
+              <div className="form-group" id="flavor-sku-wrap">
+                <label htmlFor="flavor-sku">Flavor SKU</label>
+                <div className="flavor-sku-group">
+                  <span className="sku-prefix">{categorySku ? `${categorySku}-` : '-'}</span>
+                  <input
+                    id="flavor-sku"
+                    type="text"
+                    value={flavorSku}
+                    onChange={(e) => setFlavorSku(e.target.value)}
+                    placeholder="e.g., BLURAS"
+                  />
+                </div>
               </div>
             </div>
           </div>
