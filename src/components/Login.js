@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { signInWithPopup } from 'firebase/auth';
+import React, { useState, useEffect, useCallback } from 'react';
+import { signInWithRedirect, getRedirectResult } from 'firebase/auth';
 import { auth, googleProvider, INITIAL_ALLOWED_EMAILS } from '../firebase';
 import { db } from '../firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
@@ -9,6 +9,7 @@ import './Login.css';
 const Login = () => {
   const [loading, setLoading] = useState(false);
   const [allowedEmails, setAllowedEmails] = useState(INITIAL_ALLOWED_EMAILS);
+  const [whitelistLoaded, setWhitelistLoaded] = useState(false);
 
   // Load whitelist from Firestore on component mount
   useEffect(() => {
@@ -28,34 +29,72 @@ const Login = () => {
       } catch (error) {
         console.error('Error loading whitelist:', error);
         setAllowedEmails(INITIAL_ALLOWED_EMAILS);
+      } finally {
+        setWhitelistLoaded(true);
       }
     };
     loadWhitelist();
   }, []);
 
+  const handleAuthResult = useCallback(async (result) => {
+    if (!result) return;
+    const email = result.user?.email;
+    if (!email) {
+      toast.error('Failed to retrieve email from Google. Please try again.');
+      setLoading(false);
+      return;
+    }
+    if (!allowedEmails.includes(email)) {
+      await auth.signOut();
+      toast.error('Access denied. Your email is not authorized to access this application.');
+      setLoading(false);
+      return;
+    }
+    toast.success('Welcome to SoSTrack!');
+    setLoading(false);
+  }, [allowedEmails]);
+
+  useEffect(() => {
+    if (!whitelistLoaded) return;
+    let isMounted = true;
+    const resolveRedirect = async () => {
+      try {
+        setLoading(true);
+        const result = await getRedirectResult(auth);
+        if (!isMounted) return;
+        if (result) {
+          await handleAuthResult(result);
+        } else {
+          setLoading(false);
+        }
+      } catch (error) {
+        console.error('Redirect sign-in error:', error);
+        if (isMounted) {
+          const message = error.code === 'auth/unauthorized-domain'
+            ? 'This URL is not authorized in your Firebase project. Add it to the allowed domains list or use an approved hostname.'
+            : 'Failed to sign in. Please try again.';
+          toast.error(message);
+          setLoading(false);
+        }
+      }
+    };
+    resolveRedirect();
+    return () => {
+      isMounted = false;
+    };
+  }, [handleAuthResult, whitelistLoaded]);
+
   const handleGoogleSignIn = async () => {
+    if (!whitelistLoaded) return;
     setLoading(true);
     try {
-      const result = await signInWithPopup(auth, googleProvider);
-      const email = result.user.email;
-
-      // Check if email is in whitelist
-      if (!allowedEmails.includes(email)) {
-        // Sign them out immediately
-        await auth.signOut();
-        toast.error('Access denied. Your email is not authorized to access this application.');
-        setLoading(false);
-        return;
-      }
-
-      toast.success('Welcome to SoSTrack!');
+      await signInWithRedirect(auth, googleProvider);
     } catch (error) {
       console.error('Login error:', error);
-      if (error.code === 'auth/popup-closed-by-user') {
-        toast.info('Sign in cancelled');
-      } else {
-        toast.error('Failed to sign in. Please try again.');
-      }
+      const message = error.code === 'auth/unauthorized-domain'
+        ? 'This URL is not authorized for Google sign-in. Update the Authorized Domains in Firebase Authentication settings.'
+        : `Failed to start Google sign-in (${error.code || 'unknown error'}).`;
+      toast.error(message);
       setLoading(false);
     }
   };
