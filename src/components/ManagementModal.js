@@ -1,8 +1,6 @@
 // src/components/ManagementModal.js
 import React, { useState, useMemo, useEffect } from 'react';
 import './ManagementModal.css';
-import { db } from '../firebase';
-import { doc, updateDoc, addDoc, collection, serverTimestamp, writeBatch } from 'firebase/firestore';
 import { FaCog, FaHistory, FaTrash } from 'react-icons/fa';
 import { FiEdit } from 'react-icons/fi';
 
@@ -43,13 +41,18 @@ const ManagementModal = ({ product, category, onUpdate, onDeleteBatches, onClose
     return activeBatches.find(b => b.id === selectedId)?.status === 'Package';
   }, [selectedBatches, activeBatches]);
 
+  const activeBatchIds = useMemo(
+    () => activeBatches.map(b => b.id).filter(Boolean),
+    [activeBatches]
+  );
+
   useEffect(() => {
-    if (activeBatches.length === 1) {
-      setSelectedBatches(new Set([activeBatches[0].id]));
+    if (activeBatchIds.length === 1) {
+      setSelectedBatches(new Set([activeBatchIds[0]]));
     } else {
       setSelectedBatches(new Set());
     }
-  }, [activeBatches]);
+  }, [product?.id, activeBatchIds.length === 1 ? activeBatchIds[0] : activeBatchIds.join('|')]);
 
   if (!product) return null;
 
@@ -75,13 +78,15 @@ const ManagementModal = ({ product, category, onUpdate, onDeleteBatches, onClose
   const SelectableBatchRow = ({ batch, category }) => {
     const isSelected = selectedBatches.has(batch.id);
     const handleSelection = (batchId) => {
-        const newSelection = new Set(selectedBatches);
-        if (newSelection.has(batchId)) {
-            newSelection.delete(batchId);
+      setSelectedBatches(prev => {
+        const next = new Set(prev);
+        if (next.has(batchId)) {
+          next.delete(batchId);
         } else {
-            newSelection.add(batchId);
+          next.add(batchId);
         }
-        setSelectedBatches(newSelection);
+        return next;
+      });
     };
 
     const displayWeight = useMemo(() => {
@@ -89,7 +94,7 @@ const ManagementModal = ({ product, category, onUpdate, onDeleteBatches, onClose
           if (!batch.finalCount?.countedPackages || !category?.packageOptions) return "N/A";
           let totalOunces = 0;
           batch.finalCount.countedPackages.forEach(p => {
-            const template = category.containerTemplates.find(t => t.id === p.packageId);
+            const template = category?.containerTemplates?.find(t => t.id === p.packageId);
             if (template) { totalOunces += template.weightOz * p.quantity; }
           });
           return formatWeight(totalOunces);
@@ -101,8 +106,18 @@ const ManagementModal = ({ product, category, onUpdate, onDeleteBatches, onClose
         return "N/A";
       }, [batch, category]);
 
+    const activateRow = (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      handleSelection(batch.id);
+    };
+
     return (
-      <div className={`batch-row ${isSelected ? 'selected' : ''}`} onClick={() => handleSelection(batch.id)}>
+      <div
+        className={`batch-row ${isSelected ? 'selected' : ''}`}
+        onPointerDown={activateRow}
+        onClick={activateRow}
+      >
         <div className="batch-details">
           <span className={`batch-status-tag status-${batch.status?.toLowerCase()}`}>{batch.status}</span>
           <span>{displayWeight}</span>

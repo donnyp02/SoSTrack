@@ -12,8 +12,35 @@
 .modal-content.inventory-modal .modal-header {
   border-bottom: none;
   margin-bottom: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .modal-content.inventory-modal .close-button {
   color: #94a3b8;
+}
+
+.inventory-modal-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.inventory-delete-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #dc3545;
+  border: none;
+  color: #fff;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.inventory-delete-btn:hover {
+  background: #b52533;
 }

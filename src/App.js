@@ -43,6 +43,8 @@ function App() {
     return saved ? JSON.parse(saved) : false;
   });
   const [notification, setNotification] = useState(null);
+  const [productToDelete, setProductToDelete] = useState(null);
+  const [isDeletingProduct, setIsDeletingProduct] = useState(false);
 
   useEffect(() => {
     if (darkMode) {
@@ -60,6 +62,7 @@ function App() {
   const handleCloseModal = () => {
     setModalPayload(null);
     setActiveModal(null);
+    setProductToDelete(null);
   };
 
   // Set up real-time listeners instead of manual fetching
@@ -324,6 +327,37 @@ function App() {
       console.error("Error saving manual inventory: ", error);
       toast.error('Failed to save inventory');
     }
+  };
+
+  const handleConfirmProductDelete = async () => {
+    if (!productToDelete) return;
+    setIsDeletingProduct(true);
+    let deleted = false;
+    try {
+      const { id: productId } = productToDelete;
+      const batch = writeBatch(db);
+      batch.delete(doc(db, 'products', productId));
+      const relatedBatches = Object.values(batches || {}).filter(b => b.productId === productId);
+      relatedBatches.forEach(b => batch.delete(doc(db, 'batches', b.id)));
+      await batch.commit();
+      toast.success('Product deleted');
+      deleted = true;
+    } catch (error) {
+      console.error('Error deleting product:', error);
+      toast.error('Failed to delete product');
+    } finally {
+      setIsDeletingProduct(false);
+      setProductToDelete(null);
+      if (deleted) {
+        handleCloseModal();
+        setSelectedProductId(null);
+      }
+    }
+  };
+
+  const handleCancelProductDelete = () => {
+    if (isDeletingProduct) return;
+    setProductToDelete(null);
   };
 
   const handleAddProduct = async ({ category: categoryName, flavor, categorySku, flavorSku }) => {
@@ -664,7 +698,7 @@ function App() {
                           category={categories[product.categoryId]}
                           onClick={() => {
                             setSelectedProductId(product.id);
-                            setActiveModal('manageProduct');
+                            setActiveModal('inventoryManage');
                           }}
                         />
                       </div>
@@ -677,11 +711,21 @@ function App() {
         )}
       </main>
       
-      {activeModal === 'manageProduct' && selectedProduct && ( <ManagementModal product={selectedProduct} category={selectedCategory} onClose={closeModalAndProduct} onUpdate={handleDataUpdate} onDeleteBatches={handleDeleteBatches} onOpenModal={handleOpenModal} /> )}
-      {activeModal === 'inventoryManage_OLD' && selectedProduct && (
+      {activeModal === 'manageProduct' && selectedProduct && (
+        <ManagementModal
+          product={selectedProduct}
+          category={selectedCategory}
+          onClose={closeModalAndProduct}
+          onUpdate={handleDataUpdate}
+          onDeleteBatches={handleDeleteBatches}
+          onOpenModal={handleOpenModal}
+        />
+      )}
+      {activeModal === 'inventoryManage' && selectedProduct && (
         <InventoryModal
           product={selectedProduct}
           category={selectedCategory}
+          onDeleteProduct={() => setProductToDelete(selectedProduct)}
           onPersistProduct={async (productId) => {
             try {
               const inv = (products[productId]?.containerInventory) || [];
@@ -766,6 +810,32 @@ function App() {
           </div>
         </div>
       )}
+
+      {productToDelete && (
+        <div className="modal-backdrop" onClick={handleCancelProductDelete}>
+          <div className="modal-content confirm-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Delete Product</h3>
+              <button className="close-button" onClick={handleCancelProductDelete}>&times;</button>
+            </div>
+            <div className="modal-body">
+              <p>
+                Are you sure you want to delete{' '}
+                <strong>
+                  {`${categories[productToDelete.categoryId]?.name || 'Unknown Category'} ${productToDelete.flavor || ''}`.trim()}
+                </strong>
+                ? This will also remove any associated batches.
+              </p>
+            </div>
+            <div className="modal-footer confirm-actions">
+              <button className="cancel-btn" onClick={handleCancelProductDelete} disabled={isDeletingProduct}>Cancel</button>
+              <button className="delete-btn" onClick={handleConfirmProductDelete} disabled={isDeletingProduct}>
+                {isDeletingProduct ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
     </>
     </InventoryProvider>
@@ -773,5 +843,3 @@ function App() {
 }
 
 export default App;
-
-

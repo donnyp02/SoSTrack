@@ -147,6 +147,41 @@ body {
 }
 .tab-navigation.tight { margin-bottom: 6px; }
 
+.confirm-modal {
+  max-width: 420px;
+  width: 90%;
+}
+
+.confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.confirm-actions .cancel-btn,
+.confirm-actions .delete-btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.confirm-actions .cancel-btn {
+  background: #e2e8f0;
+  color: #1e293b;
+}
+
+.confirm-actions .delete-btn {
+  background: #dc3545;
+  color: #fff;
+}
+
+.confirm-actions button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 /* Loading screen styles */
 .loading-screen {
   min-height: 100vh;
@@ -397,4 +432,3 @@ body.dark-mode {
 .empty-state p {
   margin: 0;
 }
-
