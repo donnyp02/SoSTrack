@@ -1,7 +1,14 @@
 // src/firebase.js
 import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
-import { getAuth, GoogleAuthProvider } from "firebase/auth";
+import {
+  getAuth,
+  GoogleAuthProvider,
+  setPersistence,
+  browserLocalPersistence,
+  browserSessionPersistence,
+  inMemoryPersistence,
+} from "firebase/auth";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -21,7 +28,16 @@ const db = getFirestore(app);
 
 // Initialize Firebase Auth
 const auth = getAuth(app);
+setPersistence(auth, browserLocalPersistence)
+  .catch(() => setPersistence(auth, browserSessionPersistence))
+  .catch(() => setPersistence(auth, inMemoryPersistence))
+  .catch((error) => {
+    console.warn('Failed to configure auth persistence', error);
+  });
 const googleProvider = new GoogleAuthProvider();
+googleProvider.setCustomParameters({
+  prompt: 'select_account',
+});
 
 // Initial whitelist of allowed email addresses
 // This will be synced with Firestore on first run

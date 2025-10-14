@@ -121,6 +121,18 @@
   margin-bottom: 5px;
 }
 
+.login-status {
+  margin-top: 15px;
+  padding: 10px 12px;
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  border-radius: 8px;
+  font-size: 0.9rem;
+  color: #1e3a8a;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
 .login-footer {
   padding: 20px 30px;
   background: #f8f9fa;
