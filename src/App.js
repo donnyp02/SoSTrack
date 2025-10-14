@@ -1,7 +1,12 @@
-import { useState, useEffect, useMemo } from 'react';
+﻿import { useState, useEffect, useMemo } from 'react';
 import './App.css';
-import { db } from './firebase';
-import { collection, getDocs, addDoc, doc, updateDoc, writeBatch, deleteDoc, serverTimestamp } from "firebase/firestore";
+import { db, auth } from './firebase';
+import { collection, addDoc, doc, updateDoc, writeBatch, serverTimestamp, onSnapshot } from "firebase/firestore";
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+import { useAuth } from './contexts/AuthContext';
+import { useDebounce } from './hooks/useDebounce';
+import Login from './components/Login';
 import ProductCard from './components/ProductCard';
 import ManagementModal from './components/ManagementModal';
 import AddProductModal from './components/AddProductModal';
@@ -10,9 +15,17 @@ import FinalCountModal from './components/FinalCountModal';
 import VerificationModal from './components/VerificationModal';
 import CategoryTemplateModal from './components/CategoryContainersModal'; // Renamed for clarity
 import EditInventoryModal from './components/EditInventoryModal';
+import ErrorBoundary from './components/ErrorBoundary';
+import InventoryModal from './components/InventoryModal';
+import WhitelistManager from './components/WhitelistManager';
+import VirtualizedProductList from './components/VirtualizedProductList';
 import Inventory from './components/Inventory';
+import { InventoryProvider } from './contexts/InventoryContext';
+import NotificationModal from './components/NotificationModal';
+import { FaCog } from 'react-icons/fa';
 
 function App() {
+  const { user, loading: authLoading } = useAuth();
   const [products, setProducts] = useState({});
   const [categories, setCategories] = useState({});
   const [batches, setBatches] = useState({});
@@ -22,8 +35,22 @@ function App() {
   const [modalPayload, setModalPayload] = useState(null);
   const [tempFinalCount, setTempFinalCount] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
   const [selectedCategoryId, setSelectedCategoryId] = useState('');
   const [activeTab, setActiveTab] = useState('Production');
+  const [darkMode, setDarkMode] = useState(() => {
+    const saved = localStorage.getItem('darkMode');
+    return saved ? JSON.parse(saved) : false;
+  });
+  const [notification, setNotification] = useState(null);
+
+  useEffect(() => {
+    if (darkMode) {
+      document.body.classList.add('dark-mode');
+    } else {
+      document.body.classList.remove('dark-mode');
+    }
+  }, [darkMode]);
 
   const handleOpenModal = (modalName, payload = null) => {
     setModalPayload(payload);
@@ -35,40 +62,88 @@ function App() {
     setActiveModal(null);
   };
 
-  const fetchData = async () => {
+  // Set up real-time listeners instead of manual fetching
+  useEffect(() => {
+    if (!user) return; // Don't set up listeners if not authenticated
+
     setLoading(true);
-    try {
-        const [categoriesSnapshot, productsSnapshot, batchesSnapshot] = await Promise.all([
-            getDocs(collection(db, "categories")),
-            getDocs(collection(db, "products")),
-            getDocs(collection(db, "batches"))
-        ]);
 
+    // Categories listener
+    const unsubCategories = onSnapshot(
+      collection(db, "categories"),
+      (snapshot) => {
         const categoriesMap = {};
-        categoriesSnapshot.forEach(docu => { categoriesMap[docu.id] = { id: docu.id, ...docu.data() }; });
+        snapshot.forEach(docu => {
+          categoriesMap[docu.id] = { id: docu.id, ...docu.data() };
+        });
         setCategories(categoriesMap);
+      },
+      (error) => {
+        console.error("Error fetching categories:", error);
+        toast.error("Failed to load categories");
+      }
+    );
 
+    // Products listener
+    const unsubProducts = onSnapshot(
+      collection(db, "products"),
+      (snapshot) => {
         const productsMap = {};
-        productsSnapshot.forEach(docu => { productsMap[docu.id] = { id: docu.id, ...docu.data() }; });
+        snapshot.forEach(docu => {
+          productsMap[docu.id] = { id: docu.id, ...docu.data() };
+        });
         setProducts(productsMap);
-        
-        const batchesMap = {};
-        batchesSnapshot.forEach(docu => { batchesMap[docu.id] = { id: docu.id, ...docu.data() }; });
-        setBatches(batchesMap);
-    } catch (error) {
-        console.error("Error fetching data:", error);
-    } finally {
-        setLoading(false);
-    }
-  };
+      },
+      (error) => {
+        console.error("Error fetching products:", error);
+        toast.error("Failed to load products");
+      }
+    );
 
-  useEffect(() => { fetchData(); }, []);
+    // Batches listener with change detection
+    const unsubBatches = onSnapshot(
+      collection(db, "batches"),
+      (snapshot) => {
+        const batchesMap = {};
+        snapshot.docChanges().forEach((change) => {
+          const batch = { id: change.doc.id, ...change.doc.data() };
+          if (change.type === 'modified' && !loading) {
+            const productName = products[batch.productId]?.flavor || 'Product';
+            const categoryName = categories[products[batch.productId]?.categoryId]?.name || '';
+            const fullName = `${categoryName} ${productName}`.trim();
+            if (batch.status === 'Package' && activeTab !== 'Packaging') {
+              setNotification(`${fullName} is ready for packaging!`);
+            } else if (batch.status === 'Ready' && activeTab !== 'Shipping') {
+              setNotification(`${fullName} is ready for shipping!`);
+            }
+          }
+        });
+        snapshot.forEach(docu => {
+          batchesMap[docu.id] = { id: docu.id, ...docu.data() };
+        });
+        setBatches(batchesMap);
+        setLoading(false);
+      },
+      (error) => {
+        console.error("Error fetching batches:", error);
+        toast.error("Failed to load batches");
+        setLoading(false);
+      }
+    );
+
+    // Cleanup listeners on unmount
+    return () => {
+      unsubCategories();
+      unsubProducts();
+      unsubBatches();
+    };
+  }, [user, products, categories, loading, activeTab]); // Re-setup listeners if dependencies change
 
   useEffect(() => {
     if (loading || Object.keys(batches).length === 0) return;
     const now = new Date();
     const twentyFourHoursAgo = now.getTime() - (24 * 60 * 60 * 1000);
-    const batchesToComplete = Object.values(batches).filter(b => {
+    const batchesToComplete = Object.values(batches || {}).filter(b => {
         if (b.status !== 'Ready') return false;
         const readyTime = b.dateReady?.toDate().getTime();
         return readyTime && readyTime < twentyFourHoursAgo;
@@ -79,19 +154,19 @@ function App() {
         batchesToComplete.forEach(b => {
             batchWrite.update(doc(db, "batches", b.id), { status: 'Completed' });
         });
-        batchWrite.commit().then(() => fetchData());
+        batchWrite.commit(); // Real-time listener will update automatically
     }
   }, [batches, loading]);
 
   const displayList = useMemo(() => {
+    if (!products || !categories || !batches) return [];
     if (Object.keys(products).length === 0 || Object.keys(categories).length === 0) return [];
 
-    let combined = Object.values(products).map(product => {
+    let combined = Object.values(products || {}).map(product => {
       const category = categories[product.categoryId];
-      const productBatches = Object.values(batches).filter(b => b.productId === product.id);
+      const productBatches = Object.values(batches || {}).filter(b => b.productId === product.id);
       const sortedBatches = [...productBatches].sort((a,b) => (b.dateStarted?.toMillis() || 0) - (a.dateStarted?.toMillis() || 0));
-      
-      // HYBRID MODEL LOGIC: Join category templates with product inventory
+
       const packageOptions = (category?.containerTemplates || []).map(template => {
         const inventoryItem = (product.containerInventory || []).find(inv => inv.templateId === template.id);
         return { ...template, quantity: inventoryItem?.quantity || 0 };
@@ -108,7 +183,7 @@ function App() {
     });
 
     if (selectedCategoryId) { combined = combined.filter(p => p.categoryId === selectedCategoryId); }
-    if (searchTerm) { combined = combined.filter(p => p.flavor.toLowerCase().includes(searchTerm.toLowerCase())); }
+    if (debouncedSearchTerm) { combined = combined.filter(p => p.flavor.toLowerCase().includes(debouncedSearchTerm.toLowerCase())); }
 
     const statusPriority = { 'Make': 1, 'Package': 2, 'Ready': 3, 'Idle': 4, 'Completed': 5 };
     combined.sort((a, b) => {
@@ -121,7 +196,17 @@ function App() {
       return a.flavor.localeCompare(b.flavor);
     });
     return combined;
-  }, [products, categories, batches, searchTerm, selectedCategoryId]);
+  }, [products, categories, batches, debouncedSearchTerm, selectedCategoryId]);
+
+  const tabCounts = useMemo(() => {
+    const counts = { Make: 0, Package: 0, Ready: 0 };
+    Object.values(batches || {}).forEach(batch => {
+      if (batch.status === 'Make') counts.Make++;
+      else if (batch.status === 'Package') counts.Package++;
+      else if (batch.status === 'Ready') counts.Ready++;
+    });
+    return counts;
+  }, [batches]);
 
   const handleDataUpdate = async (newStatus, data = null, batchId = null) => {
     const product = products[selectedProductId];
@@ -149,25 +234,33 @@ function App() {
         batch.update(doc(db, "products", product.id), { containerInventory: newInventory });
         await batch.commit();
       }
-      fetchData();
       handleCloseModal();
-    } catch (error) { console.error("Error updating status: ", error); }
+      toast.success('Status updated successfully');
+    } catch (error) {
+      console.error("Error updating status: ", error);
+      toast.error('Failed to update status');
+    }
   };
 
   const handleDeleteBatches = async (batchIds) => {
     if (window.confirm(`Are you sure you want to delete ${batchIds.length} batch record(s)? This cannot be undone.`)) {
-        const batch = writeBatch(db);
-        batchIds.forEach(id => {
-            batch.delete(doc(db, "batches", id));
-        });
-        await batch.commit();
-        fetchData();
+        try {
+          const batch = writeBatch(db);
+          batchIds.forEach(id => {
+              batch.delete(doc(db, "batches", id));
+          });
+          await batch.commit();
+          toast.success(`Deleted ${batchIds.length} batch(es)`);
+        } catch (error) {
+          console.error("Error deleting batches:", error);
+          toast.error('Failed to delete batches');
+        }
     }
   };
 
   const handleProductEdit = async ({ category: categoryName, flavor, categorySku, flavorSku }) => {
     const product = products[selectedProductId];
-    let category = Object.values(categories).find(cat => cat.name.toLowerCase() === categoryName.toLowerCase());
+    let category = Object.values(categories || {}).find(cat => cat.name.toLowerCase() === categoryName.toLowerCase());
     let categoryId = category?.id;
 
     if (!categoryId) {
@@ -178,33 +271,39 @@ function App() {
     }
 
     await updateDoc(doc(db, "products", product.id), { flavor, categoryId, flavorSku });
-    fetchData();
+    toast.success('Product updated');
     handleOpenModal('manageProduct');
   };
   
   const handleTemplateSave = async (newTemplates) => {
     const category = categories[products[selectedProductId].categoryId];
     const categoryDocRef = doc(db, "categories", category.id);
-    try { 
-      await updateDoc(categoryDocRef, { containerTemplates: newTemplates }); 
-      fetchData();
-    } catch (error) { console.error("Error updating templates:", error); }
+    try {
+      await updateDoc(categoryDocRef, { containerTemplates: newTemplates });
+      toast.success('Container templates updated');
+    } catch (error) {
+      console.error("Error updating templates:", error);
+      toast.error('Failed to update templates');
+    }
     handleOpenModal('manageProduct');
   };
 
   const handleInventorySave = async (newInventory) => {
     const product = products[selectedProductId];
     const productDocRef = doc(db, "products", product.id);
-    try { 
-      await updateDoc(productDocRef, { containerInventory: newInventory }); 
-      fetchData();
-    } catch (error) { console.error("Error updating inventory:", error); }
+    try {
+      await updateDoc(productDocRef, { containerInventory: newInventory });
+      toast.success('Inventory updated');
+    } catch (error) {
+      console.error("Error updating inventory:", error);
+      toast.error('Failed to update inventory');
+    }
     handleOpenModal('manageProduct');
   };
 
   const handleManualInventorySave = async (updatedInventory) => {
     const batch = writeBatch(db);
-    Object.values(updatedInventory).forEach(product => {
+    Object.values(updatedInventory || {}).forEach(product => {
       const productDocRef = doc(db, "products", product.id);
       const newContainerInventory = product.packageOptions.map(opt => ({ templateId: opt.id, quantity: opt.quantity }));
       batch.update(productDocRef, { containerInventory: newContainerInventory });
@@ -220,9 +319,10 @@ function App() {
     });
     try {
       await batch.commit();
-      fetchData();
+      toast.success('Inventory saved successfully');
     } catch (error) {
       console.error("Error saving manual inventory: ", error);
+      toast.error('Failed to save inventory');
     }
   };
 
@@ -232,7 +332,7 @@ function App() {
       const n = norm(s);
       return n.endsWith('s') ? n.slice(0, -1) : n;
     };
-    const existing = Object.values(categories).find(cat => base(cat.name) === base(categoryName));
+    const existing = Object.values(categories || {}).find(cat => base(cat.name) === base(categoryName));
     let categoryId = existing?.id;
     const catSku = (categorySku || '').toUpperCase().trim();
     if (!categoryId) {
@@ -248,7 +348,7 @@ function App() {
     }
     await addDoc(collection(db, "products"), { categoryId: categoryId, flavor: flavor, flavorSku: flavorSku, containerInventory: [] });
     handleCloseModal();
-    fetchData();
+    toast.success('Product added successfully');
   };
 
   const handleImport = async (payload) => {
@@ -272,7 +372,7 @@ function App() {
 
     for (const row of rows) {
       if (row.assignedProduct) {
-        const product = Object.values(products).find(p => p.id === row.assignedProduct);
+        const product = Object.values(products || {}).find(p => p.id === row.assignedProduct);
         if (product) {
           const category = categories[product.categoryId];
           let container = null;
@@ -311,10 +411,10 @@ function App() {
 
     try {
       await batch.commit();
-      fetchData();
-      // After import, maybe switch back to production tab or give feedback
+      toast.success(`Imported ${rows.length} items successfully`);
     } catch (error) {
       console.error("Error importing data: ", error);
+      toast.error('Failed to import data');
     }
   };
 
@@ -341,15 +441,96 @@ function App() {
   };
   // =====================================================
 
+  // Show loading screen while checking auth
+  if (authLoading) {
+    return (
+      <div className="App loading-screen">
+        <div className="loading-spinner"></div>
+        <p>Loading SoSTrack...</p>
+      </div>
+    );
+  }
+
+  // Show login if not authenticated
+  if (!user) {
+    return <Login />;
+  }
+
+  const toggleDarkMode = () => {
+    const newMode = !darkMode;
+    setDarkMode(newMode);
+    localStorage.setItem('darkMode', JSON.stringify(newMode));
+  };
+
   return (
-    <div className="App">
+    <InventoryProvider products={products} setProducts={setProducts}>
+    <>
+    <ToastContainer
+      position="top-right"
+      autoClose={3000}
+      hideProgressBar={false}
+      newestOnTop={true}
+      closeOnClick
+      rtl={false}
+      pauseOnFocusLoss
+      draggable
+      pauseOnHover
+      theme="light"
+    />
+    <div className={`App ${darkMode ? 'dark-mode' : ''}`}>
       <header className="header">
-        <h1>SoSTrack</h1>
+        <div className="header-content">
+          <div className="header-left">
+            <h1>SoSTrack</h1>
+            <button
+              className="settings-cog-btn"
+              onClick={() => setActiveModal('settings')}
+              title="Settings"
+            >
+              <FaCog aria-hidden="true" />
+              <span className="sr-only">Open settings</span>
+            </button>
+          </div>
+          <div className="user-menu">
+            <div className="user-info">
+              {user.photoURL && (
+                <img src={user.photoURL} alt="User" className="user-avatar" />
+              )}
+              <span>{user.displayName || user.email}</span>
+            </div>
+            <button
+              className="dark-mode-toggle"
+              onClick={toggleDarkMode}
+              title={darkMode ? 'Light Mode' : 'Dark Mode'}
+            >
+              {darkMode ? '☀️' : '🌙'}
+            </button>
+            <button className="logout-btn" onClick={async () => {
+              try {
+                await auth.signOut();
+                toast.info('Signed out successfully');
+              } catch (error) {
+                toast.error('Failed to sign out');
+              }
+            }}>
+              Logout
+            </button>
+          </div>
+        </div>
       </header>
       <nav className={`tab-navigation ${activeTab === 'Inventory' ? 'tight' : ''}`}>
-        <button className={`tab-button ${activeTab === 'Production' ? 'active' : ''}`} onClick={() => setActiveTab('Production')}>Production</button>
-        <button className={`tab-button ${activeTab === 'Packaging' ? 'active' : ''}`} onClick={() => setActiveTab('Packaging')}>Packaging</button>
-        <button className={`tab-button ${activeTab === 'Shipping' ? 'active' : ''}`} onClick={() => setActiveTab('Shipping')}>Shipping</button>
+        <button className={`tab-button ${activeTab === 'Production' ? 'active' : ''}`} onClick={() => setActiveTab('Production')}>
+          Production
+          {tabCounts.Make > 0 && <span className="tab-badge make">{tabCounts.Make}</span>}
+        </button>
+        <button className={`tab-button ${activeTab === 'Packaging' ? 'active' : ''}`} onClick={() => setActiveTab('Packaging')}>
+          Packaging
+          {tabCounts.Package > 0 && <span className="tab-badge package">{tabCounts.Package}</span>}
+        </button>
+        <button className={`tab-button ${activeTab === 'Shipping' ? 'active' : ''}`} onClick={() => setActiveTab('Shipping')}>
+          Shipping
+          {tabCounts.Ready > 0 && <span className="tab-badge ready">{tabCounts.Ready}</span>}
+        </button>
         <button className={`tab-button ${activeTab === 'Inventory' ? 'active' : ''}`} onClick={() => setActiveTab('Inventory')}>Inventory</button>
       </nav>
       <main>
@@ -359,31 +540,193 @@ function App() {
               <input type="text" placeholder="Search by flavor..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
               <select value={selectedCategoryId} onChange={(e) => setSelectedCategoryId(e.target.value)}>
                 <option value="">All Categories</option>
-                {Object.values(categories).sort((a, b) => a.name.localeCompare(b.name)).map(cat => ( <option key={cat.id} value={cat.id}>{cat.name}</option> ))
+                {Object.values(categories || {}).sort((a, b) => a.name.localeCompare(b.name)).map(cat => ( <option key={cat.id} value={cat.id}>{cat.name}</option> ))
                 }
               </select>
               <button className="clear-btn" onClick={() => { setSearchTerm(''); setSelectedCategoryId(''); }}>Clear</button>
             </div>
             <div className="inventory-list">
-              {loading ? (<p>Loading...</p>) : (
-                displayList.map(p => <ProductCard key={p.id} product={p} category={categories[p.categoryId]} onClick={() => { setSelectedProductId(p.id); handleOpenModal('manageProduct'); }} />)
+              {loading ? (
+                <p>Loading...</p>
+              ) : (
+                <ErrorBoundary>
+                  <div className="simple-list">
+                    {(displayList || []).map((product) => (
+                      <div key={product.id} style={{ paddingBottom: 10 }}>
+                        <ProductCard
+                          product={product}
+                          category={categories[product.categoryId]}
+                          onClick={() => {
+                            setSelectedProductId(product.id);
+                            setActiveModal('manageProduct');
+                          }}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </ErrorBoundary>
+              )}
+            </div>
+          </>
+        )}
+        {activeTab === 'Packaging' && (
+          <>
+            <div className="filter-bar">
+              <input type="text" placeholder="Search by flavor..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+              <select value={selectedCategoryId} onChange={(e) => setSelectedCategoryId(e.target.value)}>
+                <option value="">All Categories</option>
+                {Object.values(categories || {}).sort((a, b) => a.name.localeCompare(b.name)).map(cat => ( <option key={cat.id} value={cat.id}>{cat.name}</option> ))
+                }
+              </select>
+              <button className="clear-btn" onClick={() => { setSearchTerm(''); setSelectedCategoryId(''); }}>Clear</button>
+            </div>
+            <div className="inventory-list">
+              {loading ? (
+                <p>Loading...</p>
+              ) : (
+                <ErrorBoundary>
+                  <div className="simple-list">
+                    {(displayList || []).map((product) => (
+                      <div key={product.id} style={{ paddingBottom: 10 }}>
+                        <ProductCard
+                          product={product}
+                          category={categories[product.categoryId]}
+                          onClick={() => {
+                            setSelectedProductId(product.id);
+                            setActiveModal('manageProduct');
+                          }}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </ErrorBoundary>
+              )}
+            </div>
+          </>
+        )}
+        {activeTab === 'Shipping' && (
+          <>
+            <div className="filter-bar">
+              <input type="text" placeholder="Search by flavor..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+              <select value={selectedCategoryId} onChange={(e) => setSelectedCategoryId(e.target.value)}>
+                <option value="">All Categories</option>
+                {Object.values(categories || {}).sort((a, b) => a.name.localeCompare(b.name)).map(cat => ( <option key={cat.id} value={cat.id}>{cat.name}</option> ))
+                }
+              </select>
+              <button className="clear-btn" onClick={() => { setSearchTerm(''); setSelectedCategoryId(''); }}>Clear</button>
+            </div>
+            <div className="inventory-list">
+              {loading ? (
+                <p>Loading...</p>
+              ) : (
+                <ErrorBoundary>
+                  <div className="simple-list">
+                    {(displayList || []).map((product) => (
+                      <div key={product.id} style={{ paddingBottom: 10 }}>
+                        <ProductCard
+                          product={product}
+                          category={categories[product.categoryId]}
+                          onClick={() => {
+                            setSelectedProductId(product.id);
+                            setActiveModal('manageProduct');
+                          }}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </ErrorBoundary>
               )}
             </div>
           </>
         )}
         {activeTab === 'Inventory' && (
-          <Inventory
-            onImport={handleImport}
-            products={products}
-            categories={categories}
-            onAddProduct={handleAddProduct}
-            onInventorySave={handleManualInventorySave}
-            openProduct={(id) => { setSelectedProductId(id); handleOpenModal('manageProduct'); }}
-          />
+          <>
+            <div className="filter-bar">
+              <input type="text" placeholder="Search by flavor..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+              <select value={selectedCategoryId} onChange={(e) => setSelectedCategoryId(e.target.value)}>
+                <option value="">All Categories</option>
+                {Object.values(categories || {}).sort((a, b) => a.name.localeCompare(b.name)).map(cat => ( <option key={cat.id} value={cat.id}>{cat.name}</option> ))
+                }
+              </select>
+              <button className="clear-btn" onClick={() => { setSearchTerm(''); setSelectedCategoryId(''); }}>Clear</button>
+              <button className="btn-primary" style={{ marginLeft: 'auto' }} onClick={() => setActiveModal('importCsvPanel')}>Import CSV</button>
+            </div>
+            <div className="inventory-list">
+              {loading ? (
+                <p>Loading...</p>
+              ) : (
+                <ErrorBoundary>
+                  <div className="simple-list">
+                    {(displayList || []).map((product) => (
+                      <div key={product.id} style={{ paddingBottom: 10 }}>
+                        <ProductCard
+                          product={product}
+                          category={categories[product.categoryId]}
+                          onClick={() => {
+                            setSelectedProductId(product.id);
+                            setActiveModal('manageProduct');
+                          }}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </ErrorBoundary>
+              )}
+            </div>
+          </>
         )}
       </main>
       
       {activeModal === 'manageProduct' && selectedProduct && ( <ManagementModal product={selectedProduct} category={selectedCategory} onClose={closeModalAndProduct} onUpdate={handleDataUpdate} onDeleteBatches={handleDeleteBatches} onOpenModal={handleOpenModal} /> )}
+      {activeModal === 'inventoryManage_OLD' && selectedProduct && (
+        <InventoryModal
+          product={selectedProduct}
+          category={selectedCategory}
+          onPersistProduct={async (productId) => {
+            try {
+              const inv = (products[productId]?.containerInventory) || [];
+              await updateDoc(doc(db, 'products', productId), { containerInventory: inv });
+              toast.success('Product inventory persisted');
+            } catch (error) {
+              console.error('Error persisting product:', error);
+              toast.error('Failed to persist product');
+            }
+          }}
+          onSaveThresholds={async (categoryId, rows) => {
+            try {
+              const cat = categories[categoryId];
+              const templates = [...(cat?.containerTemplates || cat?.packageOptions || [])];
+              const map = new Map(rows.map(r => [r.id, r.minQty]));
+              const merged = templates.map(t => ({ ...t, minQty: map.has(t.id) ? map.get(t.id) : (t.minQty || 0) }));
+              await updateDoc(doc(db, 'categories', categoryId), { containerTemplates: merged, packageOptions: merged });
+              toast.success('Thresholds updated');
+            } catch (e) {
+              console.error('Failed saving thresholds', e);
+              toast.error('Failed to save thresholds');
+            }
+          }}
+          onClose={() => { setActiveModal(null); }}
+        />
+      )}
+      {activeModal === 'importCsvPanel' && (
+        <div className="modal-backdrop" onClick={() => setActiveModal(null)}>
+          <div className="modal-content" onClick={(e)=>e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Import WhatNot CSV</h2>
+              <button className="close-button" onClick={() => setActiveModal(null)}>Ã—</button>
+            </div>
+            <div className="modal-body">
+              <Inventory
+                onImport={handleImport}
+                products={products}
+                categories={(categories || {})}
+                onAddProduct={handleAddProduct}
+                onInventorySave={handleManualInventorySave}
+              />
+            </div>
+          </div>
+        </div>
+      )}
       {activeModal === 'makeRequest' && ( <MakeRequestModal product={selectedProduct} onClose={() => handleOpenModal('manageProduct')} onSubmit={(data) => handleDataUpdate('Make', data)} /> )}
       {activeModal === 'finalCount' && ( <FinalCountModal product={selectedProduct} batch={modalPayload} onClose={() => handleOpenModal('manageProduct')} onSubmit={(data) => { setTempFinalCount(data); handleOpenModal('verify', modalPayload); }} /> )}
       {activeModal === 'verify' && ( <VerificationModal product={selectedProduct} batch={modalPayload} finalCountData={tempFinalCount} onClose={() => handleOpenModal('finalCount', modalPayload)} onVerify={() => handleDataUpdate('Ready', tempFinalCount, modalPayload.id)} /> )}
@@ -393,17 +736,42 @@ function App() {
           product={selectedProduct}
           onSave={handleEditSave}
           onClose={closeEdit}
-          categories={categories}
+          categories={(categories || {})}
           selectedCategory={selectedCategory}
           onManageContainers={openContainers}
         />
       )}
-      {activeModal === 'editProduct' && ( <AddProductModal categories={categories} products={products} canDeleteCategory={activeTab === 'Inventory'} onClose={() => handleOpenModal('manageProduct')} onSubmit={handleProductEdit} onDataRefresh={fetchData} productToEdit={selectedProduct} categoryToEdit={selectedCategory}/>)}
+      {activeModal === 'editProduct' && ( <AddProductModal categories={(categories || {})} products={products} canDeleteCategory={activeTab === 'Inventory'} onClose={() => handleOpenModal('manageProduct')} onSubmit={handleProductEdit} productToEdit={selectedProduct} categoryToEdit={selectedCategory}/>)}
 
       <button className="add-product-btn" onClick={() => handleOpenModal('addProduct') }>+</button>
-      {activeModal === 'addProduct' && ( <AddProductModal categories={categories} products={products} canDeleteCategory={activeTab === 'Inventory'} onClose={closeModalAndProduct} onSubmit={handleAddProduct} onDataRefresh={fetchData} /> )}
+      {activeModal === 'addProduct' && ( <AddProductModal categories={(categories || {})} products={products} canDeleteCategory={activeTab === 'Inventory'} onClose={closeModalAndProduct} onSubmit={handleAddProduct} /> )}
+
+      {notification && (
+        <NotificationModal
+          message={notification}
+          onClose={() => setNotification(null)}
+        />
+      )}
+
+      {activeModal === 'settings' && (
+        <div className="modal-backdrop" onClick={() => setActiveModal(null)}>
+          <div className="modal-content settings-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Settings</h2>
+              <button className="close-button" onClick={() => setActiveModal(null)}>Ã—</button>
+            </div>
+            <div className="modal-body">
+              <WhitelistManager />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
+    </>
+    </InventoryProvider>
   );
 }
 
 export default App;
+
+

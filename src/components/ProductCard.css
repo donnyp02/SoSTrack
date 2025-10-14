@@ -1,23 +1,28 @@
 /* src/components/ProductCard.css */
 .product-card {
     background-color: #fff;
-    border-radius: 8px;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-    margin-bottom: 4px; /* ~20% tighter */
-    padding: 6px 8px 6px 25px; /* ~20% tighter vertically */
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    margin-bottom: 8px;
+    padding: 12px 12px 12px 24px;
     display: flex;
     justify-content: space-between;
     align-items: center;
     cursor: pointer;
-    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
-    position: relative; /* Crucial for layering */
-    overflow: hidden; /* Ensures pseudo-elements don't bleed out */
+    transition: all 0.2s ease-in-out;
+    position: relative;
+    overflow: hidden;
   }
-  
+
+  .product-card.idle {
+    opacity: 0.5;
+  }
+
   .product-card:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.15);
   }
+
 
   .striped-bar, .card-background {
     position: absolute;
@@ -38,24 +43,117 @@
   
   .product-info, .product-status {
     position: relative;
-    z-index: 3; /* Ensure content is on top */
+    z-index: 3;
+  }
+
+  .product-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .product-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: 1;
   }
 
   .product-flavor {
     margin: 0;
-    font-size: 1.2em; /* slightly reduced */
+    font-size: 1.1em;
     color: #333;
+    font-weight: 600;
   }
-  
+
+  .status-badges-inline {
+    display: flex;
+    gap: 4px;
+    margin-left: 8px;
+  }
+
+  .status-badge-inline {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    font-size: 0.7em;
+    font-weight: 700;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+  }
+
   .product-status {
-    font-weight: bold;
-    font-size: 1em; /* slightly reduced */
-    padding: 4px 10px; /* slightly reduced vertical padding */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .inventory-amount {
+    font-weight: 700;
+    font-size: 1.1em;
+    padding: 8px 16px;
     border-radius: 20px;
     color: #fff;
-    background-color: #6c757d; /* Default background */
+    background-color: #6c757d;
+    white-space: nowrap;
   }
-  
-  .product-status span {
-    background-color: inherit;
+
+  /* Tablet optimizations */
+  @media (min-width: 768px) and (max-width: 1024px) {
+    .product-card {
+      padding: 20px 20px 20px 32px;
+      margin-bottom: 12px;
+    }
+
+    .product-flavor {
+      font-size: 1.5em;
+    }
+
+    .status-badge-inline {
+      min-width: 28px;
+      height: 28px;
+      padding: 0 10px;
+      font-size: 0.95em;
+    }
+
+    .inventory-amount {
+      font-size: 1.2em;
+      padding: 10px 20px;
+    }
+
+    /* Larger touch targets */
+    .product-card:hover {
+      transform: translateY(-3px);
+    }
+  }
+
+  /* Mobile responsiveness */
+  @media (max-width: 767px) {
+    .product-card {
+      flex-direction: column;
+      align-items: flex-start;
+      padding: 16px 16px 16px 24px;
+      gap: 12px;
+    }
+
+    .product-header {
+      width: 100%;
+    }
+
+    .product-flavor {
+      font-size: 1.2em;
+    }
+
+    .status-badges-inline {
+      margin-left: 0;
+      margin-top: 6px;
+    }
+
+    .product-status {
+      align-self: flex-end;
+    }
   }

@@ -327,10 +327,10 @@ const Inventory = ({ onImport, products, categories, onAddProduct, onInventorySa
           ) : (
             <>
               <div className="inventory-list">
-                {Object.values(products || {}).length === 0 ? (
+                {Object.values(products).length === 0 ? (
                   <p>No products yet.</p>
                 ) : (
-                  Object.values(products || {}).map((p) => {
+                  Object.values(products).map((p) => {
                     const category = categories[p.categoryId];
                     const packageOptions = (category?.containerTemplates || []).map(template => {
                       const inv = (p.containerInventory || []).find(i => i.templateId === template.id);
@@ -392,7 +392,6 @@ const Inventory = ({ onImport, products, categories, onAddProduct, onInventorySa
 };
 
 export default Inventory;
-
 
 
 

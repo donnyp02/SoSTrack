@@ -5,9 +5,9 @@ const AssignProductModal = ({ onClose, products, categories, row, onAssign, onAd
   const [selectedProductId, setSelectedProductId] = useState('');
   const [selectedTemplateId, setSelectedTemplateId] = useState('');
 
-  const categoryList = useMemo(() => Object.values(categories || {}), [categories]);
+  const categoryList = useMemo(() => Object.values(categories), [categories]);
   const productList = useMemo(
-    () => Object.values(products || {}).filter(p => !selectedCategoryId || p.categoryId === selectedCategoryId),
+    () => Object.values(products).filter(p => !selectedCategoryId || p.categoryId === selectedCategoryId),
     [products, selectedCategoryId]
   );
   const selectedCategory = selectedCategoryId ? categories[selectedCategoryId] : null;
@@ -104,7 +104,6 @@ const AssignProductModal = ({ onClose, products, categories, row, onAssign, onAd
 };
 
 export default AssignProductModal;
-
 
 
 

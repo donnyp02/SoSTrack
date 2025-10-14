@@ -1,0 +1,19 @@
+.modal-content.inventory-modal {
+  max-width: 920px;
+  width: min(95vw, 920px);
+  border-radius: 20px;
+  padding: 24px;
+}
+
+.modal-content.inventory-modal .modal-body {
+  padding: 0;
+}
+
+.modal-content.inventory-modal .modal-header {
+  border-bottom: none;
+  margin-bottom: 10px;
+}
+
+.modal-content.inventory-modal .close-button {
+  color: #94a3b8;
+}

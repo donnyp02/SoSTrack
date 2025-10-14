@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import './ManualStockEditor.css';
 
 const ManualStockEditor = ({ products, categories, onSave }) => {
@@ -6,7 +6,7 @@ const ManualStockEditor = ({ products, categories, onSave }) => {
 
   useEffect(() => {
     const initialInventory = {};
-    Object.values(products || {}).forEach(product => {
+    Object.values(products).forEach(product => {
       const category = categories[product.categoryId];
       const packageOptions = (category?.containerTemplates || []).map(template => {
         const inventoryItem = (product.containerInventory || []).find(inv => inv.templateId === template.id);
@@ -64,4 +64,3 @@ const ManualStockEditor = ({ products, categories, onSave }) => {
 };
 
 export default ManualStockEditor;
-

@@ -1,6 +1,7 @@
 // src/firebase.js
 import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
+import { getAuth, GoogleAuthProvider } from "firebase/auth";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -18,4 +19,15 @@ const app = initializeApp(firebaseConfig);
 // Initialize Cloud Firestore and get a reference to the service
 const db = getFirestore(app);
 
-export { db };
+// Initialize Firebase Auth
+const auth = getAuth(app);
+const googleProvider = new GoogleAuthProvider();
+
+// Initial whitelist of allowed email addresses
+// This will be synced with Firestore on first run
+export const INITIAL_ALLOWED_EMAILS = [
+  'donnyp02@gmail.com',
+  'dgadlin@gmail.com'
+];
+
+export { db, auth, googleProvider };

@@ -1,4 +1,16 @@
 ﻿/* src/App.css */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
@@ -38,13 +50,43 @@ body {
   background-color: transparent;
   cursor: pointer;
   color: #777;
-  margin-bottom: -2px; /* Aligns with the bottom border */
+  margin-bottom: -2px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  position: relative;
 }
 
 .tab-button.active {
   font-weight: bold;
   color: #007bff;
   border-bottom: 2px solid #007bff;
+}
+
+.tab-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  font-size: 0.65em;
+  font-weight: 600;
+  color: white;
+}
+
+.tab-badge.make {
+  background-color: #dc3545;
+}
+
+.tab-badge.package {
+  background-color: #ffc107;
+  color: #333;
+}
+
+.tab-badge.ready {
+  background-color: #28a745;
 }
 
 .filter-bar {
@@ -104,4 +146,255 @@ body {
   cursor: pointer;
 }
 .tab-navigation.tight { margin-bottom: 6px; }
+
+/* Loading screen styles */
+.loading-screen {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.loading-spinner {
+  width: 50px;
+  height: 50px;
+  border: 5px solid rgba(255, 255, 255, 0.3);
+  border-top: 5px solid white;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 20px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.loading-screen p {
+  font-size: 1.2em;
+  margin: 0;
+}
+
+/* User menu in header */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 20px;
+}
+
+.header-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.settings-cog-btn {
+  background: #f0f0f0;
+  border: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  font-size: 1.5em;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.settings-cog-btn:hover {
+  background: #e0e0e0;
+  transform: rotate(45deg);
+}
+
+.settings-cog-btn:active {
+  transform: rotate(45deg) scale(0.95);
+}
+
+.user-menu {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.9em;
+  color: #666;
+}
+
+.user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 2px solid #007bff;
+}
+
+.dark-mode-toggle {
+  padding: 8px 12px;
+  background-color: #f0f0f0;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 1.2em;
+  transition: all 0.2s ease;
+}
+
+.dark-mode-toggle:hover {
+  background-color: #e0e0e0;
+  transform: translateY(-1px);
+}
+
+.dark-mode-toggle:active {
+  transform: translateY(0);
+}
+
+.logout-btn {
+  padding: 8px 16px;
+  background-color: #dc3545;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9em;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.logout-btn:hover {
+  background-color: #c82333;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(220, 53, 69, 0.3);
+}
+
+.logout-btn:active {
+  transform: translateY(0);
+}
+
+/* Dark Mode */
+body.dark-mode {
+  background-color: #121212;
+}
+
+.App.dark-mode {
+  background-color: #1a1a1a;
+  color: #e0e0e0;
+}
+
+.dark-mode .header h1 {
+  color: #e0e0e0;
+}
+
+.dark-mode .tab-button {
+  color: #b0b0b0;
+}
+
+.dark-mode .tab-button.active {
+  color: #4da3ff;
+  border-bottom-color: #4da3ff;
+}
+
+.dark-mode .tab-navigation {
+  border-bottom-color: #333;
+}
+
+.dark-mode .filter-bar {
+  background-color: #2a2a2a;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
+
+.dark-mode .filter-bar input,
+.dark-mode .filter-bar select {
+  background-color: #333;
+  color: #e0e0e0;
+  border-color: #444;
+}
+
+.dark-mode .product-card {
+  background-color: #2a2a2a;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+
+.dark-mode .product-flavor {
+  color: #e0e0e0;
+}
+
+.dark-mode .user-info {
+  color: #b0b0b0;
+}
+
+.dark-mode .settings-cog-btn {
+  background: #333;
+  color: #e0e0e0;
+}
+
+.dark-mode .settings-cog-btn:hover {
+  background: #444;
+}
+
+.dark-mode .dark-mode-toggle {
+  background-color: #333;
+}
+
+.dark-mode .dark-mode-toggle:hover {
+  background-color: #444;
+}
+
+.dark-mode .clear-btn {
+  background-color: #555;
+}
+
+.dark-mode .clear-btn:hover {
+  background-color: #666;
+}
+
+.dark-mode .modal-backdrop {
+  background-color: rgba(0, 0, 0, 0.85);
+}
+
+/* Settings modal */
+.settings-modal {
+  max-width: 900px;
+  width: 90vw;
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+.settings-modal .modal-body {
+  padding: 0;
+}
+
+.settings-modal .whitelist-manager {
+  padding: 30px;
+}
+
+/* Virtualized list */
+.virtualized-list-container {
+  height: calc(100vh - 300px);
+  min-height: 400px;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: #999;
+  font-size: 1.2em;
+}
+
+.empty-state p {
+  margin: 0;
+}
 

@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install:*)",
+      "Bash(npm start)",
+      "Bash(timeout 5 sleep 5)",
+      "Bash(echo $REACT_APP_FIREBASE_PROJECT_ID)",
+      "Bash(if [ -f .env ])",
+      "Bash(then grep REACT_APP_FIREBASE_PROJECT_ID .env)",
+      "Bash(elif [ -f .env.local ])",
+      "Bash(then grep REACT_APP_FIREBASE_PROJECT_ID .env.local)",
+      "Bash(else echo \"No .env file found\")",
+      "Bash(fi)",
+      "Bash(curl:*)",
+      "Bash(pkill:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

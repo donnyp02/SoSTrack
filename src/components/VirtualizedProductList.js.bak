@@ -1,0 +1,53 @@
+import React from 'react';
+import { List } from 'react-window';
+import AutoSizer from 'react-virtualized-auto-sizer';
+import ProductCard from './ProductCard';
+
+const VirtualizedProductList = ({ products, categories, onProductClick }) => {
+  const CARD_HEIGHT = 100; // Height of each product card in pixels
+  const GAP = 10; // Gap between cards
+
+  // Row renderer for react-window
+  const Row = ({ index, style }) => {
+    const product = products[index];
+    const category = categories[product.categoryId];
+
+    return (
+      <div style={{ ...style, paddingBottom: GAP }}>
+        <ProductCard
+          product={product}
+          category={category}
+          onClick={() => onProductClick(product.id)}
+        />
+      </div>
+    );
+  };
+
+  if (products.length === 0) {
+    return (
+      <div className="empty-state">
+        <p>No products found</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="virtualized-list-container">
+      <AutoSizer>
+        {({ height, width }) => (
+          <List
+            height={height}
+            itemCount={products.length}
+            itemSize={CARD_HEIGHT + GAP}
+            width={width}
+            overscanCount={5} // Render 5 extra items above/below viewport
+          >
+            {Row}
+          </List>
+        )}
+      </AutoSizer>
+    </div>
+  );
+};
+
+export default VirtualizedProductList;

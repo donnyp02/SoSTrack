@@ -45,7 +45,7 @@ const AddProductModal = ({
 
   useEffect(() => {
     const norm = (s) => (s || '').toString().trim().toLowerCase();
-    const found = Object.values(categories || {}).find(
+    const found = Object.values(categories).find(
       (cat) => norm(cat.name) === norm(categoryInput)
     );
     setSelectedCategory(found || null);
@@ -145,7 +145,7 @@ const AddProductModal = ({
                     setCategoryInput(val);
                     const norm = (s) => (s || '').toString().trim().toLowerCase();
                     const base = (s) => { const n = norm(s); return n.endsWith('s') ? n.slice(0, -1) : n; };
-                    const found = Object.values(categories || {}).find(c => base(c.name) === base(val));
+                    const found = Object.values(categories).find(c => base(c.name) === base(val));
                     setSelectedCategory(found || null);
                     if (found) setCategorySku(((found.sku) || '').toUpperCase());
                   }}
@@ -154,7 +154,7 @@ const AddProductModal = ({
                     if (!newName) return;
                     const norm = (s) => (s || '').toString().trim().toLowerCase();
                     const base = (s) => { const n = norm(s); return n.endsWith('s') ? n.slice(0, -1) : n; };
-                    const found = Object.values(categories || {}).find(c => base(c.name) === base(newName));
+                    const found = Object.values(categories).find(c => base(c.name) === base(newName));
                     if (found && found.name !== newName) {
                       try {
                         await updateDoc(doc(db, 'categories', found.id), { name: newName });
@@ -165,7 +165,7 @@ const AddProductModal = ({
                   placeholder="Type or choose a Category"
                 />
                 <datalist id="category-list">
-                  {Object.values(categories || {}).map((cat) => (
+                  {Object.values(categories).map((cat) => (
                     <option key={cat.id} value={cat.name} />
                   ))}
                 </datalist>
@@ -268,7 +268,6 @@ const AddProductModal = ({
 };
 
 export default AddProductModal;
-
 
 
 

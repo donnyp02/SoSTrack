@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import './ManagementModal.css';
 import { db } from '../firebase';
-import { doc, updateDoc, addDoc, collection, serverTimestamp, writeBatch, FieldValue, deleteDoc } from 'firebase/firestore';
+import { doc, updateDoc, addDoc, collection, serverTimestamp, writeBatch } from 'firebase/firestore';
 import { FaCog, FaHistory, FaTrash } from 'react-icons/fa';
 import { FiEdit } from 'react-icons/fi';
 
@@ -124,13 +124,13 @@ const ManagementModal = ({ product, category, onUpdate, onDeleteBatches, onClose
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal-content wide" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
-          <div class="modal-header-content">
+          <div className="modal-header-content">
             <h2>
               Manage: {category?.name} {product.flavor}
             </h2>
-            <div class="header-sku-display">
-              <span class="sku-label">SKU:</span>
-              <span class="sku-display">{category?.sku}-{product.flavorSku}</span>
+            <div className="header-sku-display">
+              <span className="sku-label">SKU:</span>
+              <span className="sku-display">{category?.sku}-{product.flavorSku}</span>
               <button className="icon-btn" onClick={() => onOpenModal('editProduct')}><FiEdit /></button> 
             </div>
           </div>

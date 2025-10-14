@@ -45,7 +45,7 @@
   background-color: #f8f9fa; padding: 15px; border-radius: 8px;
 }
 .stat-item span { display: block; font-size: 1.5em; font-weight: bold; color: #007bff; }
-.stat-item small { color: #6c757d; }
+.stat-item small { color: #1f2933; }
 .package-list { list-style: none; padding: 0; margin: 0; }
 .package-list li {
   background-color: #f8f9fa;
@@ -79,6 +79,21 @@
   max-height: 200px;
   overflow-y: auto;
   padding-right: 5px;
+}
+
+
+.batch-row,
+.batch-row .batch-details span {
+  color: #1f2933;
+}
+
+.batch-row small {
+  color: #0f172a;
+  font-weight: 600;
+}
+
+.batch-row.selected {
+  background-color: #e9ecef;
 }
 
 .batch-row {
