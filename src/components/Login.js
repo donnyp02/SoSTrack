@@ -12,7 +12,6 @@ const Login = () => {
     INITIAL_ALLOWED_EMAILS.map((email) => email.trim().toLowerCase())
   );
   const [whitelistLoaded, setWhitelistLoaded] = useState(false);
-  const [statusMessage, setStatusMessage] = useState('');
   const processedUserRef = useRef(null);
 
   // Load whitelist from Firestore on component mount
@@ -55,24 +54,18 @@ const Login = () => {
     if (!user) return;
     processedUserRef.current = user.uid;
     const email = user.email?.trim().toLowerCase();
-    console.debug('[Login] Processing auth result for UID:', user.uid, 'email:', email);
     if (!email) {
       toast.error('Failed to retrieve email from Google. Please try again.');
-      setStatusMessage('Google did not return an email address. Please retry.');
       setLoading(false);
       return;
     }
-    setStatusMessage(`Signed in as ${email}, verifying access…`);
-    console.debug('[Login] Received auth result for', email);
     if (!allowedEmails.includes(email)) {
       await auth.signOut();
       toast.error(`Access denied. ${email} is not authorized to access this application.`);
-      setStatusMessage(`Access denied for ${email}. Add it to the whitelist to continue.`);
       setLoading(false);
       return;
     }
     toast.success('Welcome to SoSTrack!');
-    setStatusMessage('Access granted. Loading app…');
     setLoading(false);
   }, [allowedEmails]);
 
@@ -82,18 +75,12 @@ const Login = () => {
     const resolveRedirect = async () => {
       try {
         setLoading(true);
-        setStatusMessage('Checking for a previous Google sign-in…');
         const result = await getRedirectResult(auth);
         if (!isMounted) return;
         if (result) {
-          console.debug('[Login] redirect result returned', result);
           await handleAuthResult(result);
         } else if (auth.currentUser) {
-          console.debug('[Login] no redirect result, using currentUser', auth.currentUser.uid);
           await handleAuthResult({ user: auth.currentUser });
-        } else {
-          console.warn('[Login] No redirect result and no current user after redirect. Likely the sign-in was cancelled or blocked.');
-          setStatusMessage('No Google session detected. If the sign-in window closed immediately, please ensure cookies are enabled and the domain is authorized in Firebase.');
         }
         setLoading(false);
       } catch (error) {
@@ -103,7 +90,6 @@ const Login = () => {
             ? 'This URL is not authorized in your Firebase project. Add it to the allowed domains list or use an approved hostname.'
             : 'Failed to sign in. Please try again.';
           toast.error(message);
-          setStatusMessage(`Redirect error: ${message} (${error.code || 'unknown'})`);
           setLoading(false);
         }
       }
@@ -119,7 +105,6 @@ const Login = () => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (!user) {
         processedUserRef.current = null;
-        setStatusMessage('');
         setLoading(false);
         return;
       }
@@ -140,21 +125,17 @@ const Login = () => {
   const handleGoogleSignIn = async () => {
     if (!whitelistLoaded) return;
     setLoading(true);
-    setStatusMessage('Starting Google sign-in…');
     try {
       if (shouldUseRedirect()) {
-        setStatusMessage('Redirecting to Google…');
         await signInWithRedirect(auth, googleProvider);
         return;
       }
-      setStatusMessage('Opening Google sign-in popup…');
       const result = await signInWithPopup(auth, googleProvider);
       await handleAuthResult(result);
     } catch (error) {
       console.error('Login error:', error);
       if (error.code === 'auth/popup-blocked' || error.code === 'auth/popup-closed-by-user') {
         try {
-          setStatusMessage('Popup blocked, falling back to redirect…');
           await signInWithRedirect(auth, googleProvider);
           return;
         } catch (redirectError) {
@@ -163,14 +144,12 @@ const Login = () => {
             ? 'This URL is not authorized for Google sign-in. Update the Authorized Domains in Firebase Authentication settings.'
             : `Failed to start Google sign-in (${redirectError.code || 'unknown error'}).`;
           toast.error(message);
-          setStatusMessage(`Redirect fallback failed: ${message}`);
         }
       } else {
         const message = error.code === 'auth/unauthorized-domain'
           ? 'This URL is not authorized for Google sign-in. Update the Authorized Domains in Firebase Authentication settings.'
           : `Failed to start Google sign-in (${error.code || 'unknown error'}).`;
         toast.error(message);
-        setStatusMessage(`Google sign-in failed: ${message}`);
       }
       setLoading(false);
     }
@@ -215,12 +194,6 @@ const Login = () => {
             </div>
           )}
         </div>
-
-        {statusMessage && (
-          <div className="login-status">
-            {statusMessage}
-          </div>
-        )}
 
         <div className="login-footer">
           <p>Secure access for authorized users only</p>

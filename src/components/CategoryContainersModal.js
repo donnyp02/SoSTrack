@@ -3,8 +3,8 @@ import './CategoryContainersModal.css';
 
 // It now correctly expects a 'category' prop
 const CategoryContainersModal = ({ category, onSave, onClose }) => {
-  // It now correctly reads from category.containerTemplates
-  const [packageOptions, setPackageOptions] = useState(category.containerTemplates || []);
+  const templates = category?.containerTemplates || [];
+  const [packageOptions, setPackageOptions] = useState(templates);
   const [newName, setNewName] = useState('');
   const [newWeight, setNewWeight] = useState('');
   const [newSku, setNewSku] = useState('');
@@ -56,7 +56,7 @@ const CategoryContainersModal = ({ category, onSave, onClose }) => {
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal-content small-modal" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
-          <h3>Manage Templates for "{category.name}"</h3>
+          <h3>Manage Templates for "{category?.name || 'Unnamed Category'}"</h3>
           <button onClick={onClose} className="close-button">&times;</button>
         </div>
         <div className="modal-body">
