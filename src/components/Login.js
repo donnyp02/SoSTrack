@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { signInWithRedirect, getRedirectResult } from 'firebase/auth';
+import { signInWithRedirect, getRedirectResult, signInWithPopup } from 'firebase/auth';
 import { auth, googleProvider, INITIAL_ALLOWED_EMAILS } from '../firebase';
 import { db } from '../firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
@@ -8,7 +8,9 @@ import './Login.css';
 
 const Login = () => {
   const [loading, setLoading] = useState(false);
-  const [allowedEmails, setAllowedEmails] = useState(INITIAL_ALLOWED_EMAILS);
+  const [allowedEmails, setAllowedEmails] = useState(
+    INITIAL_ALLOWED_EMAILS.map((email) => email.trim().toLowerCase())
+  );
   const [whitelistLoaded, setWhitelistLoaded] = useState(false);
 
   // Load whitelist from Firestore on component mount
@@ -17,18 +19,27 @@ const Login = () => {
       try {
         const whitelistDoc = await getDoc(doc(db, 'settings', 'whitelist'));
         if (whitelistDoc.exists()) {
-          setAllowedEmails(whitelistDoc.data().emails || INITIAL_ALLOWED_EMAILS);
+          const fetched = whitelistDoc.data().emails || INITIAL_ALLOWED_EMAILS;
+          const normalized = fetched
+            .map((email) => (email ? email.trim().toLowerCase() : null))
+            .filter(Boolean);
+          setAllowedEmails(normalized);
         } else {
           // Initialize whitelist in Firestore if it doesn't exist
+          const normalizedInitial = INITIAL_ALLOWED_EMAILS.map((email) =>
+            email.trim().toLowerCase()
+          );
           await setDoc(doc(db, 'settings', 'whitelist'), {
-            emails: INITIAL_ALLOWED_EMAILS,
+            emails: normalizedInitial,
             updatedAt: new Date()
           });
-          setAllowedEmails(INITIAL_ALLOWED_EMAILS);
+          setAllowedEmails(normalizedInitial);
         }
       } catch (error) {
         console.error('Error loading whitelist:', error);
-        setAllowedEmails(INITIAL_ALLOWED_EMAILS);
+        setAllowedEmails(
+          INITIAL_ALLOWED_EMAILS.map((email) => email.trim().toLowerCase())
+        );
       } finally {
         setWhitelistLoaded(true);
       }
@@ -38,7 +49,7 @@ const Login = () => {
 
   const handleAuthResult = useCallback(async (result) => {
     if (!result) return;
-    const email = result.user?.email;
+    const email = result.user?.email?.trim().toLowerCase();
     if (!email) {
       toast.error('Failed to retrieve email from Google. Please try again.');
       setLoading(false);
@@ -46,7 +57,7 @@ const Login = () => {
     }
     if (!allowedEmails.includes(email)) {
       await auth.signOut();
-      toast.error('Access denied. Your email is not authorized to access this application.');
+      toast.error(`Access denied. ${email} is not authorized to access this application.`);
       setLoading(false);
       return;
     }
@@ -64,9 +75,10 @@ const Login = () => {
         if (!isMounted) return;
         if (result) {
           await handleAuthResult(result);
-        } else {
-          setLoading(false);
+        } else if (auth.currentUser) {
+          await handleAuthResult({ user: auth.currentUser });
         }
+        setLoading(false);
       } catch (error) {
         console.error('Redirect sign-in error:', error);
         if (isMounted) {
@@ -84,17 +96,43 @@ const Login = () => {
     };
   }, [handleAuthResult, whitelistLoaded]);
 
+  const shouldUseRedirect = () => {
+    if (typeof window === 'undefined') return true;
+    const ua = navigator.userAgent;
+    const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(ua);
+    const isStandalone = window.matchMedia && window.matchMedia('(display-mode: standalone)').matches;
+    return isMobile || isStandalone;
+  };
+
   const handleGoogleSignIn = async () => {
     if (!whitelistLoaded) return;
     setLoading(true);
     try {
-      await signInWithRedirect(auth, googleProvider);
+      if (shouldUseRedirect()) {
+        await signInWithRedirect(auth, googleProvider);
+        return;
+      }
+      const result = await signInWithPopup(auth, googleProvider);
+      await handleAuthResult(result);
     } catch (error) {
       console.error('Login error:', error);
-      const message = error.code === 'auth/unauthorized-domain'
-        ? 'This URL is not authorized for Google sign-in. Update the Authorized Domains in Firebase Authentication settings.'
-        : `Failed to start Google sign-in (${error.code || 'unknown error'}).`;
-      toast.error(message);
+      if (error.code === 'auth/popup-blocked' || error.code === 'auth/popup-closed-by-user') {
+        try {
+          await signInWithRedirect(auth, googleProvider);
+          return;
+        } catch (redirectError) {
+          console.error('Redirect fallback failed:', redirectError);
+          const message = redirectError.code === 'auth/unauthorized-domain'
+            ? 'This URL is not authorized for Google sign-in. Update the Authorized Domains in Firebase Authentication settings.'
+            : `Failed to start Google sign-in (${redirectError.code || 'unknown error'}).`;
+          toast.error(message);
+        }
+      } else {
+        const message = error.code === 'auth/unauthorized-domain'
+          ? 'This URL is not authorized for Google sign-in. Update the Authorized Domains in Firebase Authentication settings.'
+          : `Failed to start Google sign-in (${error.code || 'unknown error'}).`;
+        toast.error(message);
+      }
       setLoading(false);
     }
   };
