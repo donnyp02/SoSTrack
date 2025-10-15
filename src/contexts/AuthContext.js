@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { onAuthStateChanged, signOut as firebaseSignOut } from 'firebase/auth';
-import { auth } from '../firebase';
+import { auth, INITIAL_ALLOWED_EMAILS } from '../firebase';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../firebase';
 
 const AuthContext = createContext(null);
 
@@ -10,10 +12,68 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     console.log('[AuthContext] Setting up auth state listener');
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      console.log('[AuthContext] Auth state changed:', user ? user.email : 'no user');
-      setUser(user);
-      setLoading(false);
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      console.log('[AuthContext] Auth state changed:', firebaseUser ? firebaseUser.email : 'no user');
+
+      if (!firebaseUser) {
+        console.log('[AuthContext] No user, setting state to null');
+        setUser(null);
+        setLoading(false);
+        return;
+      }
+
+      // Validate user against whitelist before accepting them
+      const email = firebaseUser.email?.trim().toLowerCase();
+      console.log('[AuthContext] Validating user email:', email);
+
+      if (!email) {
+        console.error('[AuthContext] User has no email, signing out');
+        await firebaseSignOut(auth);
+        setUser(null);
+        setLoading(false);
+        return;
+      }
+
+      // Fetch whitelist from Firestore
+      try {
+        console.log('[AuthContext] Fetching whitelist...');
+        const whitelistDoc = await getDoc(doc(db, 'settings', 'whitelist'));
+        let allowedEmails = INITIAL_ALLOWED_EMAILS.map((e) => e.trim().toLowerCase());
+
+        if (whitelistDoc.exists()) {
+          const fetched = whitelistDoc.data().emails || INITIAL_ALLOWED_EMAILS;
+          allowedEmails = fetched
+            .map((e) => (e ? e.trim().toLowerCase() : null))
+            .filter(Boolean);
+        }
+
+        console.log('[AuthContext] Whitelist loaded, checking if email is allowed:', allowedEmails);
+
+        if (!allowedEmails.includes(email)) {
+          console.warn('[AuthContext] Email not in whitelist, signing out:', email);
+          await firebaseSignOut(auth);
+          setUser(null);
+          setLoading(false);
+          return;
+        }
+
+        console.log('[AuthContext] User validated, setting user state');
+        setUser(firebaseUser);
+        setLoading(false);
+      } catch (error) {
+        console.error('[AuthContext] Error validating user:', error);
+        // Fallback to initial whitelist
+        const allowedEmails = INITIAL_ALLOWED_EMAILS.map((e) => e.trim().toLowerCase());
+        if (allowedEmails.includes(email)) {
+          console.log('[AuthContext] User validated with fallback whitelist');
+          setUser(firebaseUser);
+        } else {
+          console.warn('[AuthContext] User not in fallback whitelist, signing out');
+          await firebaseSignOut(auth);
+          setUser(null);
+        }
+        setLoading(false);
+      }
     });
 
     return unsubscribe;

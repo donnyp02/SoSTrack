@@ -1,103 +1,18 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { signInWithRedirect, getRedirectResult, signInWithPopup } from 'firebase/auth';
-import { auth, googleProvider, INITIAL_ALLOWED_EMAILS } from '../firebase';
-import { db } from '../firebase';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { auth, googleProvider } from '../firebase';
 import { toast } from 'react-toastify';
 import './Login.css';
 
 const Login = () => {
   const [loading, setLoading] = useState(false);
-  const [allowedEmails, setAllowedEmails] = useState(
-    INITIAL_ALLOWED_EMAILS.map((email) => email.trim().toLowerCase())
-  );
-  const [whitelistLoaded, setWhitelistLoaded] = useState(false);
-  const processedUserRef = useRef(null);
-
-  // Load whitelist from Firestore on component mount
-  useEffect(() => {
-    const loadWhitelist = async () => {
-      try {
-        console.log('[Login] Loading whitelist...');
-        const whitelistDoc = await getDoc(doc(db, 'settings', 'whitelist'));
-        if (whitelistDoc.exists()) {
-          const fetched = whitelistDoc.data().emails || INITIAL_ALLOWED_EMAILS;
-          const normalized = fetched
-            .map((email) => (email ? email.trim().toLowerCase() : null))
-            .filter(Boolean);
-          setAllowedEmails(normalized);
-          console.log('[Login] Whitelist loaded:', normalized.length, 'emails');
-        } else {
-          // Initialize whitelist in Firestore if it doesn't exist
-          const normalizedInitial = INITIAL_ALLOWED_EMAILS.map((email) =>
-            email.trim().toLowerCase()
-          );
-          await setDoc(doc(db, 'settings', 'whitelist'), {
-            emails: normalizedInitial,
-            updatedAt: new Date()
-          });
-          setAllowedEmails(normalizedInitial);
-          console.log('[Login] Whitelist initialized with', normalizedInitial.length, 'emails');
-        }
-      } catch (error) {
-        console.error('[Login] Error loading whitelist:', error);
-        setAllowedEmails(
-          INITIAL_ALLOWED_EMAILS.map((email) => email.trim().toLowerCase())
-        );
-      } finally {
-        setWhitelistLoaded(true);
-      }
-    };
-    loadWhitelist();
-  }, []);
-
-  const handleAuthResult = useCallback(async (result) => {
-    console.log('[Login] handleAuthResult called', result ? 'with result' : 'no result');
-    if (!result) return;
-    const user = result.user;
-    if (!user) {
-      console.log('[Login] No user in result');
-      return;
-    }
-
-    processedUserRef.current = user.uid;
-    const email = user.email?.trim().toLowerCase();
-    console.log('[Login] Processing auth for email:', email);
-
-    if (!email) {
-      console.error('[Login] No email found on user');
-      toast.error('Failed to retrieve email from Google. Please try again.');
-      await auth.signOut();
-      setLoading(false);
-      return;
-    }
-
-    console.log('[Login] Checking whitelist. Allowed emails:', allowedEmails);
-    if (!allowedEmails.includes(email)) {
-      console.warn('[Login] Email not in whitelist:', email);
-      await auth.signOut();
-      toast.error(`Access denied. ${email} is not authorized to access this application.`);
-      setLoading(false);
-      return;
-    }
-
-    console.log('[Login] Auth successful for:', email);
-    toast.success('Welcome to SoSTrack!');
-    setLoading(false);
-  }, [allowedEmails]);
 
   // Handle redirect result on component mount
   useEffect(() => {
-    if (!whitelistLoaded) {
-      console.log('[Login] Waiting for whitelist to load before processing redirect...');
-      return;
-    }
-
     let isMounted = true;
     const resolveRedirect = async () => {
       try {
         console.log('[Login] Checking for redirect result...');
-        setLoading(true);
         const result = await getRedirectResult(auth);
 
         if (!isMounted) {
@@ -106,11 +21,11 @@ const Login = () => {
         }
 
         if (result) {
-          console.log('[Login] Redirect result found, processing...');
-          await handleAuthResult(result);
+          console.log('[Login] Redirect result found, user:', result.user?.email);
+          // AuthContext will handle whitelist validation
+          toast.success('Signing in...');
         } else {
           console.log('[Login] No redirect result found');
-          setLoading(false);
         }
       } catch (error) {
         console.error('[Login] Redirect sign-in error:', error);
@@ -119,7 +34,6 @@ const Login = () => {
             ? 'This URL is not authorized in your Firebase project. Add it to the allowed domains list or use an approved hostname.'
             : 'Failed to sign in. Please try again.';
           toast.error(message);
-          setLoading(false);
         }
       }
     };
@@ -129,7 +43,7 @@ const Login = () => {
     return () => {
       isMounted = false;
     };
-  }, [handleAuthResult, whitelistLoaded]);
+  }, []);
 
   const shouldUseRedirect = () => {
     if (typeof window === 'undefined') return true;
@@ -141,11 +55,6 @@ const Login = () => {
   };
 
   const handleGoogleSignIn = async () => {
-    if (!whitelistLoaded) {
-      console.warn('[Login] Sign in attempted before whitelist loaded');
-      return;
-    }
-
     console.log('[Login] Starting Google sign in...');
     setLoading(true);
 
@@ -159,7 +68,9 @@ const Login = () => {
 
       console.log('[Login] Using popup flow for desktop');
       const result = await signInWithPopup(auth, googleProvider);
-      await handleAuthResult(result);
+      // AuthContext will handle whitelist validation
+      console.log('[Login] Popup sign-in successful:', result.user?.email);
+      toast.success('Signing in...');
     } catch (error) {
       console.error('[Login] Login error:', error);
       if (error.code === 'auth/popup-blocked' || error.code === 'auth/popup-closed-by-user') {
@@ -215,13 +126,6 @@ const Login = () => {
               </>
             )}
           </button>
-
-          {allowedEmails.length === 0 && (
-            <div className="warning-notice">
-              <strong>⚠️ Setup Required:</strong> No email whitelist configured.
-              Please add allowed emails in src/firebase.js
-            </div>
-          )}
         </div>
 
         <div className="login-footer">
