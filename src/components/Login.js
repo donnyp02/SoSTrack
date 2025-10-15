@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { signInWithRedirect, signInWithPopup, setPersistence, browserLocalPersistence } from 'firebase/auth';
 import { auth, googleProvider } from '../firebase';
 import { toast } from 'react-toastify';
@@ -11,17 +11,17 @@ const Login = () => {
   // Note: getRedirectResult is handled in AuthContext to avoid calling it twice
 
   // Load existing logs from localStorage on mount (console override is now in index.js)
-  useState(() => {
+  useEffect(() => {
     try {
       const savedLogs = JSON.parse(localStorage.getItem('debug_logs') || '[]');
       setDebugInfo(savedLogs);
     } catch (e) {
       console.error('Failed to load debug logs', e);
     }
-  });
+  }, []);
 
   // Refresh logs periodically to show new entries
-  useState(() => {
+  useEffect(() => {
     const interval = setInterval(() => {
       try {
         const savedLogs = JSON.parse(localStorage.getItem('debug_logs') || '[]');
@@ -32,7 +32,7 @@ const Login = () => {
     }, 500); // Refresh every 500ms
 
     return () => clearInterval(interval);
-  });
+  }, []);
 
   const shouldUseRedirect = () => {
     if (typeof window === 'undefined') return true;
