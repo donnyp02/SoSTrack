@@ -6,30 +6,53 @@ import { db } from '../firebase';
 
 const AuthContext = createContext(null);
 
+// Global flag to prevent multiple calls to getRedirectResult in the same render cycle
+// This resets on actual page navigation/reload
+let redirectCheckInProgress = false;
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    console.log('[AuthContext] Setting up auth state listener');
+    console.log('[AuthContext] AuthProvider mounted/re-mounted');
+    console.log('[AuthContext] redirectCheckInProgress:', redirectCheckInProgress);
 
-    // CRITICAL: Wait a moment for Firebase to restore auth state from storage
-    // This is especially important on mobile after OAuth redirect
+    // CRITICAL: Only check redirect result ONCE per mount
     const checkRedirect = async () => {
+      if (redirectCheckInProgress) {
+        console.log('[AuthContext] Redirect check already in progress, skipping duplicate call');
+        return;
+      }
+
       try {
+        redirectCheckInProgress = true;
+        console.log('[AuthContext] Starting redirect check...');
+
         // Give Firebase time to restore state from localStorage
         await new Promise(resolve => setTimeout(resolve, 100));
 
         console.log('[AuthContext] Checking for redirect result...');
+        console.log('[AuthContext] Current URL:', window.location.href);
+        console.log('[AuthContext] Current auth state before check:', auth.currentUser ? auth.currentUser.email : 'no user');
+
         const result = await getRedirectResult(auth);
 
+        console.log('[AuthContext] getRedirectResult returned:', result ? 'USER FOUND' : 'NULL');
         if (result) {
-          console.log('[AuthContext] ✓ Redirect result found:', result.user?.email);
+          console.log('[AuthContext] ✓✓✓ REDIRECT RESULT FOUND ✓✓✓');
+          console.log('[AuthContext] User email:', result.user?.email);
+          console.log('[AuthContext] User ID:', result.user?.uid);
         } else {
-          console.log('[AuthContext] No redirect result (user may already be logged in)');
+          console.log('[AuthContext] No redirect result');
+          console.log('[AuthContext] Auth state after null result:', auth.currentUser ? auth.currentUser.email : 'still no user');
         }
       } catch (error) {
         console.error('[AuthContext] Error checking redirect result:', error);
+        console.error('[AuthContext] Error details:', error.code, error.message);
+      } finally {
+        // Don't reset the flag - we only want to check once per app load
+        console.log('[AuthContext] Redirect check complete');
       }
     };
 
@@ -37,6 +60,22 @@ export const AuthProvider = ({ children }) => {
 
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       console.log('[AuthContext] Auth state changed:', firebaseUser ? firebaseUser.email : 'no user');
+
+      // Check for bypass flag (testing only)
+      const bypassAuth = sessionStorage.getItem('auth_bypass');
+      if (bypassAuth === 'true') {
+        console.log('[AuthContext] ⚠️ AUTH BYPASS ENABLED - TESTING ONLY ⚠️');
+        const fakeUser = {
+          uid: 'test-user-bypass',
+          email: 'test@bypass.com',
+          displayName: 'Test User (Bypass)',
+          photoURL: null,
+          emailVerified: true
+        };
+        setUser(fakeUser);
+        setLoading(false);
+        return;
+      }
 
       if (!firebaseUser) {
         console.log('[AuthContext] No user, setting state to null');

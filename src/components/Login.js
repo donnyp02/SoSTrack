@@ -57,6 +57,26 @@ const Login = () => {
     return isMobile || isStandalone;
   };
 
+  const handleBypassAuth = () => {
+    // Create a fake user object for testing
+    const fakeUser = {
+      uid: 'test-user-bypass',
+      email: 'test@bypass.com',
+      displayName: 'Test User (Bypass)',
+      photoURL: null
+    };
+
+    // Manually set the user in AuthContext by triggering onAuthStateChanged
+    // Note: This is a hack for testing only - in production you'd never do this
+    console.log('[Login] BYPASS: Simulating authenticated user');
+    toast.info('Authentication bypassed for testing');
+
+    // Force a page reload to trigger the app with a "logged in" state
+    // We'll use sessionStorage to pass the bypass flag
+    sessionStorage.setItem('auth_bypass', 'true');
+    window.location.reload();
+  };
+
   const handleGoogleSignIn = async () => {
     console.log('[Login] Starting Google sign in...');
     setLoading(true);
@@ -136,6 +156,19 @@ const Login = () => {
                 Sign in with Google
               </>
             )}
+          </button>
+
+          <button
+            className="google-signin-btn"
+            onClick={handleBypassAuth}
+            disabled={loading}
+            style={{
+              marginTop: '10px',
+              backgroundColor: '#ff6b6b',
+              border: '1px solid #ff5252'
+            }}
+          >
+            🔓 Bypass Auth (Testing Only)
           </button>
         </div>
 
