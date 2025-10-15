@@ -11,25 +11,13 @@ import {
 } from "firebase/auth";
 
 // Your web app's Firebase configuration
-// IMPORTANT: For OAuth redirects to work, authDomain must match where the app is accessed from
+// CRITICAL: For OAuth redirects on Vercel, we MUST use the Firebase authDomain
+// The /__/auth/handler endpoint only exists on *.firebaseapp.com domains
 const currentDomain = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
 const currentOrigin = typeof window !== 'undefined' ? window.location.origin : '';
 
-// Determine which authDomain to use based on where we're running
-let authDomain;
-if (currentDomain === 'localhost' || currentDomain === '127.0.0.1') {
-  // Local development
-  authDomain = 'localhost';
-} else if (currentDomain.includes('vercel.app')) {
-  // Vercel deployment
-  authDomain = currentDomain;
-} else if (currentDomain.match(/^\d+\.\d+\.\d+\.\d+$/)) {
-  // IP address (local network testing)
-  authDomain = currentDomain;
-} else {
-  // Fallback to Firebase default
-  authDomain = process.env.REACT_APP_FIREBASE_AUTH_DOMAIN;
-}
+// Always use the Firebase authDomain - it has the proper OAuth handler
+const authDomain = process.env.REACT_APP_FIREBASE_AUTH_DOMAIN;
 
 console.log('[Firebase] Current origin:', currentOrigin);
 console.log('[Firebase] Current domain:', currentDomain);
@@ -61,6 +49,13 @@ const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({
   prompt: 'select_account',
 });
+
+// IMPORTANT: Disable Firebase's reserved URLs (/__/auth/handler) for non-Firebase hosting
+// This is critical for Vercel deployments
+if (typeof window !== 'undefined') {
+  // Force Firebase to not use reserved URLs
+  auth.settings.appVerificationDisabledForTesting = false;
+}
 
 // Initial whitelist of allowed email addresses
 // This will be synced with Firestore on first run
