@@ -35,10 +35,14 @@ const Login = () => {
   }, []);
 
   const shouldUseRedirect = () => {
-    // DISABLED: Redirect mode doesn't work on mobile with Vercel
-    // Firebase loses auth state when authDomain (.firebaseapp.com) != actual domain (.vercel.app)
-    // Always use popup mode instead
-    return false;
+    // Use redirect on mobile devices for better UX (avoids popup blockers)
+    // Now that authDomain matches the actual domain, redirect should work
+    if (typeof window === 'undefined') return true;
+    const ua = navigator.userAgent;
+    const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(ua);
+    const isStandalone = window.matchMedia && window.matchMedia('(display-mode: standalone)').matches;
+    console.log('[Login] shouldUseRedirect - isMobile:', isMobile, 'isStandalone:', isStandalone);
+    return isMobile || isStandalone;
   };
 
   const handleBypassAuth = () => {
@@ -159,7 +163,7 @@ const Login = () => {
         <div className="login-footer">
           <p>Secure access for authorized users only</p>
           <p style={{ fontSize: '10px', marginTop: '10px', color: '#666' }}>
-            v2.0.15 | Build: {new Date().toISOString().split('T')[0]}
+            v2.0.17 | Build: {new Date().toISOString().split('T')[0]}
           </p>
         </div>
 

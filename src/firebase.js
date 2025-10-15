@@ -14,13 +14,21 @@ console.log('[firebase.js] FILE LOADING - This proves the module is being import
 console.log('[firebase.js] Firebase imports complete');
 
 // Your web app's Firebase configuration
-// CRITICAL: For OAuth redirects on Vercel, we MUST use the Firebase authDomain
-// The /__/auth/handler endpoint only exists on *.firebaseapp.com domains
+// CRITICAL: For OAuth redirects to work on Vercel, authDomain MUST match the actual domain
 const currentDomain = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
 const currentOrigin = typeof window !== 'undefined' ? window.location.origin : '';
 
-// Always use the Firebase authDomain - it has the proper OAuth handler
-const authDomain = process.env.REACT_APP_FIREBASE_AUTH_DOMAIN;
+// Use the current domain as authDomain when on Vercel
+// This ensures OAuth state persists correctly across the redirect
+let authDomain;
+if (currentDomain.includes('vercel.app')) {
+  authDomain = currentDomain; // Use Vercel domain
+  console.log('[Firebase] Using Vercel domain as authDomain for proper OAuth redirect handling');
+} else if (currentDomain === 'localhost' || currentDomain === '127.0.0.1') {
+  authDomain = 'localhost';
+} else {
+  authDomain = process.env.REACT_APP_FIREBASE_AUTH_DOMAIN; // Fallback
+}
 
 console.log('[Firebase] Current origin:', currentOrigin);
 console.log('[Firebase] Current domain:', currentDomain);
