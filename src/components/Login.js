@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { signInWithRedirect, signInWithPopup } from 'firebase/auth';
+import { signInWithRedirect, signInWithPopup, setPersistence, browserLocalPersistence } from 'firebase/auth';
 import { auth, googleProvider } from '../firebase';
 import { toast } from 'react-toastify';
 import './Login.css';
@@ -14,7 +14,6 @@ const Login = () => {
     const ua = navigator.userAgent;
     const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(ua);
     const isStandalone = window.matchMedia && window.matchMedia('(display-mode: standalone)').matches;
-    console.log('[Login] shouldUseRedirect:', { isMobile, isStandalone, result: isMobile || isStandalone });
     return isMobile || isStandalone;
   };
 
@@ -23,31 +22,36 @@ const Login = () => {
     setLoading(true);
 
     try {
-      if (shouldUseRedirect()) {
-        console.log('[Login] Using redirect flow for mobile/standalone');
-        await signInWithRedirect(auth, googleProvider);
-        // Note: execution stops here on redirect
-        return;
-      }
+      const useRedirect = shouldUseRedirect();
+      console.log('[Login] Using', useRedirect ? 'REDIRECT' : 'POPUP', 'flow');
 
-      console.log('[Login] Using popup flow for desktop');
-      const result = await signInWithPopup(auth, googleProvider);
-      // AuthContext will handle whitelist validation
-      console.log('[Login] Popup sign-in successful:', result.user?.email);
-      toast.success('Signing in...');
+      if (useRedirect) {
+        // CRITICAL: Set persistence BEFORE redirect for mobile
+        console.log('[Login] Setting LOCAL persistence before redirect...');
+        await setPersistence(auth, browserLocalPersistence);
+        console.log('[Login] Persistence set, starting redirect...');
+        await signInWithRedirect(auth, googleProvider);
+        // Execution stops here - page will redirect
+        return;
+      } else {
+        // Desktop: use popup
+        const result = await signInWithPopup(auth, googleProvider);
+        console.log('[Login] Popup sign-in successful:', result.user?.email);
+        toast.success('Signing in...');
+      }
     } catch (error) {
       console.error('[Login] Login error:', error);
+
+      // Fallback to redirect if popup blocked
       if (error.code === 'auth/popup-blocked' || error.code === 'auth/popup-closed-by-user') {
         console.log('[Login] Popup blocked, falling back to redirect');
         try {
+          await setPersistence(auth, browserLocalPersistence);
           await signInWithRedirect(auth, googleProvider);
           return;
         } catch (redirectError) {
           console.error('[Login] Redirect fallback failed:', redirectError);
-          const message = redirectError.code === 'auth/unauthorized-domain'
-            ? 'This URL is not authorized for Google sign-in. Update the Authorized Domains in Firebase Authentication settings.'
-            : `Failed to start Google sign-in (${redirectError.code || 'unknown error'}).`;
-          toast.error(message);
+          toast.error(`Failed to start Google sign-in (${redirectError.code || 'unknown error'}).`);
         }
       } else {
         const message = error.code === 'auth/unauthorized-domain'

@@ -13,16 +13,20 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     console.log('[AuthContext] Setting up auth state listener');
 
-    // Check for redirect result first
+    // CRITICAL: Wait a moment for Firebase to restore auth state from storage
+    // This is especially important on mobile after OAuth redirect
     const checkRedirect = async () => {
       try {
-        console.log('[AuthContext] Checking for redirect result on mount...');
+        // Give Firebase time to restore state from localStorage
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        console.log('[AuthContext] Checking for redirect result...');
         const result = await getRedirectResult(auth);
 
         if (result) {
-          console.log('[AuthContext] Redirect result found:', result.user?.email);
+          console.log('[AuthContext] ✓ Redirect result found:', result.user?.email);
         } else {
-          console.log('[AuthContext] No redirect result');
+          console.log('[AuthContext] No redirect result (user may already be logged in)');
         }
       } catch (error) {
         console.error('[AuthContext] Error checking redirect result:', error);
