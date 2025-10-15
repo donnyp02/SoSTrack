@@ -1,13 +1,18 @@
-﻿import { useState, useEffect, useMemo, useRef } from 'react';
+﻿import { useState, useEffect, useMemo } from 'react';
 import './App.css';
 import { db, auth } from './firebase';
-import { collection, addDoc, doc, updateDoc, writeBatch, serverTimestamp, onSnapshot } from "firebase/firestore";
+import { collection, addDoc, doc, updateDoc, writeBatch, serverTimestamp } from "firebase/firestore";
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { useAuth } from './contexts/AuthContext';
 import { useDebounce } from './hooks/useDebounce';
+import { useFirestoreCollection } from './hooks/useFirestoreCollection';
+import { useBatchAutoComplete } from './hooks/useBatchAutoComplete';
+import { useBatchNotifications } from './hooks/useBatchNotifications';
+import { useConfirm } from './hooks/useConfirm';
+import { SEARCH_DEBOUNCE_DELAY } from './constants/timings';
 import Login from './components/Login';
-import ProductCard from './components/ProductCard';
+import ProductListTab from './components/ProductListTab';
 import ManagementModal from './components/ManagementModal';
 import AddProductModal from './components/AddProductModal';
 import MakeRequestModal from './components/MakeRequestModal';
@@ -15,28 +20,42 @@ import FinalCountModal from './components/FinalCountModal';
 import VerificationModal from './components/VerificationModal';
 import CategoryTemplateModal from './components/CategoryContainersModal'; // Renamed for clarity
 import EditInventoryModal from './components/EditInventoryModal';
-import ErrorBoundary from './components/ErrorBoundary';
 import InventoryModal from './components/InventoryModal';
 import WhitelistManager from './components/WhitelistManager';
 import Inventory from './components/Inventory';
 import { InventoryProvider } from './contexts/InventoryContext';
 import NotificationModal from './components/NotificationModal';
 import ReportsModal from './components/ReportsModal';
-import { FaCog } from 'react-icons/fa';
+import CsvImportPreviewModal from './components/CsvImportPreviewModal';
+import ErrorBoundary from './components/ErrorBoundary';
+import { FaCog, FaExclamationTriangle } from 'react-icons/fa';
 import { combineFlavorName, stripContainerSuffix, normalizeString } from './utils/containerUtils';
 
 function App() {
   const { user, loading: authLoading } = useAuth();
+  const { showConfirm, ConfirmDialog } = useConfirm();
+
+  // Use custom hooks for Firestore collections
+  const { data: categories, loading: categoriesLoading } = useFirestoreCollection(db, 'categories', !!user);
+  const { data: firestoreProducts, loading: productsLoading } = useFirestoreCollection(db, 'products', !!user);
+  const { data: batches, loading: batchesLoading } = useFirestoreCollection(db, 'batches', !!user);
+
+  // Keep products in state for InventoryProvider (which needs setProducts for optimistic updates)
   const [products, setProducts] = useState({});
-  const [categories, setCategories] = useState({});
-  const [batches, setBatches] = useState({});
-  const [loading, setLoading] = useState(true);
+
+  // Sync Firestore products to local state
+  useEffect(() => {
+    setProducts(firestoreProducts);
+  }, [firestoreProducts]);
+
+  const loading = categoriesLoading || productsLoading || batchesLoading;
+
   const [selectedProductId, setSelectedProductId] = useState(null);
   const [activeModal, setActiveModal] = useState(null);
   const [modalPayload, setModalPayload] = useState(null);
   const [tempFinalCount, setTempFinalCount] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const debouncedSearchTerm = useDebounce(searchTerm, 300);
+  const debouncedSearchTerm = useDebounce(searchTerm, SEARCH_DEBOUNCE_DELAY);
   const [selectedCategoryId, setSelectedCategoryId] = useState('');
   const [activeTab, setActiveTab] = useState('Production');
   const [darkMode, setDarkMode] = useState(() => {
@@ -46,7 +65,11 @@ function App() {
   const [notification, setNotification] = useState(null);
   const [productToDelete, setProductToDelete] = useState(null);
   const [isDeletingProduct, setIsDeletingProduct] = useState(false);
-  const previousBatchStatuses = useRef({});
+  const [pendingCsvImport, setPendingCsvImport] = useState(null);
+
+  // Use custom hooks for batch auto-complete and notifications
+  useBatchAutoComplete(db, batches, loading);
+  useBatchNotifications(batches, products, categories, activeTab, loading, setNotification);
 
   useEffect(() => {
     if (darkMode) {
@@ -66,119 +89,6 @@ function App() {
     setActiveModal(null);
     setProductToDelete(null);
   };
-
-  // Set up real-time listeners instead of manual fetching
-  useEffect(() => {
-    if (!user) return; // Don't set up listeners if not authenticated
-
-    setLoading(true);
-
-    // Categories listener
-    const unsubCategories = onSnapshot(
-      collection(db, "categories"),
-      (snapshot) => {
-        const categoriesMap = {};
-        snapshot.forEach(docu => {
-          categoriesMap[docu.id] = { id: docu.id, ...docu.data() };
-        });
-        setCategories(categoriesMap);
-      },
-      (error) => {
-        console.error("Error fetching categories:", error);
-        toast.error("Failed to load categories");
-      }
-    );
-
-    // Products listener
-    const unsubProducts = onSnapshot(
-      collection(db, "products"),
-      (snapshot) => {
-        const productsMap = {};
-        snapshot.forEach(docu => {
-          productsMap[docu.id] = { id: docu.id, ...docu.data() };
-        });
-        setProducts(productsMap);
-      },
-      (error) => {
-        console.error("Error fetching products:", error);
-        toast.error("Failed to load products");
-      }
-    );
-
-    // Batches listener
-    const unsubBatches = onSnapshot(
-      collection(db, "batches"),
-      (snapshot) => {
-        const batchesMap = {};
-        snapshot.forEach(docu => {
-          batchesMap[docu.id] = { id: docu.id, ...docu.data() };
-        });
-        setBatches(batchesMap);
-        setLoading(false);
-      },
-      (error) => {
-        console.error("Error fetching batches:", error);
-        toast.error("Failed to load batches");
-        setLoading(false);
-      }
-    );
-
-    // Cleanup listeners on unmount
-    return () => {
-      unsubCategories();
-      unsubProducts();
-      unsubBatches();
-    };
-  }, [user]); // Only re-setup listeners when user changes
-
-  useEffect(() => {
-    if (loading || Object.keys(batches).length === 0) return;
-    const now = new Date();
-    const twentyFourHoursAgo = now.getTime() - (24 * 60 * 60 * 1000);
-    const batchesToComplete = Object.values(batches || {}).filter(b => {
-        if (b.status !== 'Ready') return false;
-        const readyTime = b.dateReady?.toDate().getTime();
-        return readyTime && readyTime < twentyFourHoursAgo;
-    });
-
-    if (batchesToComplete.length > 0) {
-        const batchWrite = writeBatch(db);
-        batchesToComplete.forEach(b => {
-            batchWrite.update(doc(db, "batches", b.id), { status: 'Completed' });
-        });
-        batchWrite.commit(); // Real-time listener will update automatically
-    }
-  }, [batches, loading]);
-
-  // Monitor batch status changes and show notifications based on current tab
-  useEffect(() => {
-    if (loading || !products || !categories || Object.keys(batches).length === 0) return;
-
-    // Check for status changes
-    Object.values(batches || {}).forEach(batch => {
-      const oldStatus = previousBatchStatuses.current[batch.id];
-      const newStatus = batch.status;
-
-      // Only show notification if status actually changed (not on initial load)
-      if (oldStatus && oldStatus !== newStatus) {
-        const product = products[batch.productId];
-        const category = categories[product?.categoryId];
-        const productName = `${category?.name || ''} ${product?.flavor || 'Product'}`.trim();
-
-        // Show notification if status changed to match current tab
-        if (newStatus === 'Package' && activeTab === 'Packaging') {
-          setNotification(`${productName} is ready for packaging!`);
-        } else if (newStatus === 'Ready' && activeTab === 'Shipping') {
-          setNotification(`${productName} is ready for shipping!`);
-        } else if (newStatus === 'Make' && activeTab === 'Production') {
-          setNotification(`New production run started for ${productName}!`);
-        }
-      }
-
-      // Update the ref with current status
-      previousBatchStatuses.current[batch.id] = newStatus;
-    });
-  }, [batches, products, categories, activeTab, loading]);
 
   const displayList = useMemo(() => {
     if (!products || !categories || !batches) return [];
@@ -298,23 +208,31 @@ function App() {
       toast.success('Status updated successfully');
     } catch (error) {
       console.error("Error updating status: ", error);
-      toast.error('Failed to update status');
+      toast.error(`Failed to update status: ${error.message || 'Please try again'}`);
     }
   };
 
   const handleDeleteBatches = async (batchIds) => {
-    if (window.confirm(`Are you sure you want to delete ${batchIds.length} batch record(s)? This cannot be undone.`)) {
-        try {
-          const batch = writeBatch(db);
-          batchIds.forEach(id => {
-              batch.delete(doc(db, "batches", id));
-          });
-          await batch.commit();
-          toast.success(`Deleted ${batchIds.length} batch(es)`);
-        } catch (error) {
-          console.error("Error deleting batches:", error);
-          toast.error('Failed to delete batches');
-        }
+    const confirmed = await showConfirm({
+      title: 'Delete Batches?',
+      message: `Are you sure you want to delete ${batchIds.length} batch record(s)? This cannot be undone.`,
+      confirmText: 'Delete',
+      confirmColor: 'red',
+      icon: <FaExclamationTriangle />
+    });
+
+    if (!confirmed) return;
+
+    try {
+      const batch = writeBatch(db);
+      batchIds.forEach(id => {
+        batch.delete(doc(db, "batches", id));
+      });
+      await batch.commit();
+      toast.success(`Deleted ${batchIds.length} batch(es)`);
+    } catch (error) {
+      console.error("Error deleting batches:", error);
+      toast.error(`Failed to delete batches: ${error.message || 'Unknown error'}`);
     }
   };
 
@@ -539,9 +457,18 @@ function App() {
     toast.success('Product added successfully');
   };
 
-  const handleImport = async (payload) => {
-    const rows = Array.isArray(payload) ? payload : payload?.rows || [];
-    const fileInfo = Array.isArray(payload) ? null : payload?.file || null;
+  // Show CSV import preview before confirming
+  const handleImportPreview = (payload) => {
+    setPendingCsvImport(payload);
+    setActiveModal('csvImportPreview');
+  };
+
+  // Actually perform the import after user confirms
+  const handleImportConfirm = async () => {
+    if (!pendingCsvImport) return;
+
+    const rows = Array.isArray(pendingCsvImport) ? pendingCsvImport : pendingCsvImport?.rows || [];
+    const fileInfo = Array.isArray(pendingCsvImport) ? null : pendingCsvImport?.file || null;
     const batch = writeBatch(db);
     let fileRefId = null;
 
@@ -600,9 +527,11 @@ function App() {
     try {
       await batch.commit();
       toast.success(`Imported ${rows.length} items successfully`);
+      setPendingCsvImport(null);
+      setActiveModal(null);
     } catch (error) {
       console.error("Error importing data: ", error);
-      toast.error('Failed to import data');
+      toast.error(`Failed to import data: ${error.message || 'Unknown error'}`);
     }
   };
 
@@ -651,8 +580,10 @@ function App() {
   };
 
   return (
+    <ErrorBoundary>
     <InventoryProvider products={products} setProducts={setProducts}>
     <>
+    <ConfirmDialog />
     <ToastContainer
       position="top-right"
       autoClose={3000}
@@ -664,6 +595,8 @@ function App() {
       draggable
       pauseOnHover
       theme="light"
+      limit={3}
+      stacked
     />
     <div className={`App ${darkMode ? 'dark-mode' : ''}`}>
       <header className="header">
@@ -722,159 +655,39 @@ function App() {
         <button className={`tab-button ${activeTab === 'Inventory' ? 'active' : ''}`} onClick={() => setActiveTab('Inventory')}>Inventory</button>
       </nav>
       <main>
-        {activeTab === 'Production' && (
-          <>
-            <div className="filter-bar">
-              <input type="text" placeholder="Search by flavor..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-              <select value={selectedCategoryId} onChange={(e) => setSelectedCategoryId(e.target.value)}>
-                <option value="">All Categories</option>
-                {Object.values(categories || {}).sort((a, b) => a.name.localeCompare(b.name)).map(cat => ( <option key={cat.id} value={cat.id}>{cat.name}</option> ))
-                }
-              </select>
-              <button className="clear-btn" onClick={() => { setSearchTerm(''); setSelectedCategoryId(''); }}>Clear</button>
-            </div>
-            <div className="inventory-list">
-              {loading ? (
-                <p>Loading...</p>
-              ) : (
-                <ErrorBoundary>
-                  <div className="simple-list">
-                    {(displayList || []).map((product) => (
-                      <div key={product.id} style={{ paddingBottom: 6 }}>
-                        <ProductCard
-                          product={product}
-                          category={categories[product.categoryId]}
-                          onClick={() => {
-                            setSelectedProductId(product.id);
-                            setActiveModal('manageProduct');
-                          }}
-                        />
-                      </div>
-                    ))}
-                  </div>
-                </ErrorBoundary>
-              )}
-            </div>
-          </>
-        )}
-        {activeTab === 'Packaging' && (
-          <>
-            <div className="filter-bar">
-              <input type="text" placeholder="Search by flavor..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-              <select value={selectedCategoryId} onChange={(e) => setSelectedCategoryId(e.target.value)}>
-                <option value="">All Categories</option>
-                {Object.values(categories || {}).sort((a, b) => a.name.localeCompare(b.name)).map(cat => ( <option key={cat.id} value={cat.id}>{cat.name}</option> ))
-                }
-              </select>
-              <button className="clear-btn" onClick={() => { setSearchTerm(''); setSelectedCategoryId(''); }}>Clear</button>
-            </div>
-            <div className="inventory-list">
-              {loading ? (
-                <p>Loading...</p>
-              ) : (
-                <ErrorBoundary>
-                  <div className="simple-list">
-                    {(displayList || []).map((product) => (
-                      <div key={product.id} style={{ paddingBottom: 6 }}>
-                        <ProductCard
-                          product={product}
-                          category={categories[product.categoryId]}
-                          onClick={() => {
-                            setSelectedProductId(product.id);
-                            setActiveModal('manageProduct');
-                          }}
-                        />
-                      </div>
-                    ))}
-                  </div>
-                </ErrorBoundary>
-              )}
-            </div>
-          </>
-        )}
-        {activeTab === 'Shipping' && (
-          <>
-            <div className="filter-bar">
-              <input type="text" placeholder="Search by flavor..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-              <select value={selectedCategoryId} onChange={(e) => setSelectedCategoryId(e.target.value)}>
-                <option value="">All Categories</option>
-                {Object.values(categories || {}).sort((a, b) => a.name.localeCompare(b.name)).map(cat => ( <option key={cat.id} value={cat.id}>{cat.name}</option> ))
-                }
-              </select>
-              <button className="clear-btn" onClick={() => { setSearchTerm(''); setSelectedCategoryId(''); }}>Clear</button>
-            </div>
-            <div className="inventory-list">
-              {loading ? (
-                <p>Loading...</p>
-              ) : (
-                <ErrorBoundary>
-                  <div className="simple-list">
-                    {(displayList || []).map((product) => (
-                      <div key={product.id} style={{ paddingBottom: 6 }}>
-                        <ProductCard
-                          product={product}
-                          category={categories[product.categoryId]}
-                          onClick={() => {
-                            setSelectedProductId(product.id);
-                            setActiveModal('manageProduct');
-                          }}
-                        />
-                      </div>
-                    ))}
-                  </div>
-                </ErrorBoundary>
-              )}
-            </div>
-          </>
+        {(activeTab === 'Production' || activeTab === 'Packaging' || activeTab === 'Shipping') && (
+          <ProductListTab
+            displayList={displayList}
+            categories={categories}
+            loading={loading}
+            searchTerm={searchTerm}
+            setSearchTerm={setSearchTerm}
+            selectedCategoryId={selectedCategoryId}
+            setSelectedCategoryId={setSelectedCategoryId}
+            onProductClick={(productId) => {
+              setSelectedProductId(productId);
+              setActiveModal('manageProduct');
+            }}
+          />
         )}
         {activeTab === 'Inventory' && (
-          <>
-            <div className="filter-bar">
-              <input type="text" placeholder="Search by flavor..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-              <select value={selectedCategoryId} onChange={(e) => setSelectedCategoryId(e.target.value)}>
-                <option value="">All Categories</option>
-                {Object.values(categories || {}).sort((a, b) => a.name.localeCompare(b.name)).map(cat => ( <option key={cat.id} value={cat.id}>{cat.name}</option> ))
-                }
-              </select>
-              <button className="clear-btn" onClick={() => { setSearchTerm(''); setSelectedCategoryId(''); }}>Clear</button>
-              <button
-                className="btn-secondary"
-                style={{ marginLeft: 'auto' }}
-                onClick={() => setActiveModal('reports')}
-              >
-                Reports
-              </button>
-              <button
-                className="btn-primary"
-                style={{ marginLeft: '12px' }}
-                onClick={() => setActiveModal('importCsvPanel')}
-              >
-                Import CSV
-              </button>
-            </div>
-            <div className="inventory-list">
-              {loading ? (
-                <p>Loading...</p>
-              ) : (
-                <ErrorBoundary>
-                  <div className="simple-list">
-                    {(displayList || []).map((product) => (
-                      <div key={product.id} style={{ paddingBottom: 6 }}>
-                        <ProductCard
-                          product={product}
-                          category={categories[product.categoryId]}
-                          onClick={() => {
-                            setSelectedProductId(product.id);
-                            setActiveModal('inventoryManage');
-                          }}
-                        />
-                      </div>
-                    ))}
-                  </div>
-                </ErrorBoundary>
-              )}
-            </div>
-          </>
+          <ProductListTab
+            displayList={displayList}
+            categories={categories}
+            loading={loading}
+            searchTerm={searchTerm}
+            setSearchTerm={setSearchTerm}
+            selectedCategoryId={selectedCategoryId}
+            setSelectedCategoryId={setSelectedCategoryId}
+            onProductClick={(productId) => {
+              setSelectedProductId(productId);
+              setActiveModal('inventoryManage');
+            }}
+            showImportButton={true}
+            showReportsButton={true}
+            onImportClick={() => setActiveModal('importCsvPanel')}
+            onReportsClick={() => setActiveModal('reports')}
+          />
         )}
       </main>
       
@@ -928,7 +741,7 @@ function App() {
             </div>
             <div className="modal-body">
               <Inventory
-                onImport={handleImport}
+                onImport={handleImportPreview}
                 products={products}
                 categories={(categories || {})}
                 onAddProduct={handleAddProduct}
@@ -985,6 +798,19 @@ function App() {
         </div>
       )}
 
+      {activeModal === 'csvImportPreview' && pendingCsvImport && (
+        <CsvImportPreviewModal
+          rows={Array.isArray(pendingCsvImport) ? pendingCsvImport : pendingCsvImport?.rows || []}
+          products={products}
+          categories={categories}
+          onConfirm={handleImportConfirm}
+          onCancel={() => {
+            setPendingCsvImport(null);
+            setActiveModal('importCsvPanel');
+          }}
+        />
+      )}
+
       {productToDelete && (
         <div className="modal-backdrop" onClick={handleCancelProductDelete}>
           <div className="modal-content confirm-modal" onClick={(e) => e.stopPropagation()}>
@@ -1013,6 +839,7 @@ function App() {
     </div>
     </>
     </InventoryProvider>
+    </ErrorBoundary>
   );
 }
 

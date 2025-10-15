@@ -1,8 +1,9 @@
 // src/components/ManagementModal.js
 import React, { useState, useMemo, useEffect } from 'react';
 import './ManagementModal.css';
-import { FaCog, FaHistory, FaTrash, FaCheckCircle } from 'react-icons/fa';
+import { FaCog, FaHistory, FaTrash, FaCheckCircle, FaExclamationTriangle, FaCheck } from 'react-icons/fa';
 import { FiEdit } from 'react-icons/fi';
+import { useConfirm } from '../hooks/useConfirm';
 
 // (Other modal imports would be here)
 
@@ -15,8 +16,10 @@ const formatWeight = (ounces) => {
 };
 
 const ManagementModal = ({ product, category, onUpdate, onDeleteBatches, onClose, onOpenModal }) => {
+  const { showConfirm, ConfirmDialog } = useConfirm();
   const [showCompleted, setShowCompleted] = useState(false);
   const [selectedBatches, setSelectedBatches] = useState(new Set());
+  const [isProcessing, setIsProcessing] = useState(false);
   
   const activeBatches = useMemo(() => 
     (product?.batches || []).filter(b => b.status !== 'Completed'), 
@@ -63,10 +66,28 @@ const ManagementModal = ({ product, category, onUpdate, onDeleteBatches, onClose
   const resolvedUnits = onHandUnits < 0 ? 0 : onHandUnits;
   const onHandLabel = `${resolvedUnits}`;
 
-  const handlePackage = () => {
-    selectedBatches.forEach(batchId => {
-      onUpdate('Package', null, batchId);
+  const handlePackage = async () => {
+    if (isProcessing) return;
+
+    const count = selectedBatches.size;
+    const confirmed = await showConfirm({
+      title: 'Ready for Packaging?',
+      message: `Mark ${count} batch${count > 1 ? 'es' : ''} as ready for packaging? This will move ${count > 1 ? 'them' : 'it'} to the packaging stage.`,
+      confirmText: 'Mark Ready',
+      confirmColor: 'yellow',
+      icon: <FaCheck />
     });
+
+    if (!confirmed) return;
+
+    setIsProcessing(true);
+    try {
+      for (const batchId of selectedBatches) {
+        await onUpdate('Package', null, batchId, { keepOpen: true });
+      }
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const handleFinalize = () => {
@@ -75,16 +96,47 @@ const ManagementModal = ({ product, category, onUpdate, onDeleteBatches, onClose
     onOpenModal('finalCount', batch);
   };
 
-  const handleDeleteSelected = () => {
+  const handleDeleteSelected = async () => {
+    if (isProcessing) return;
+
+    const count = selectedBatches.size;
+    const confirmed = await showConfirm({
+      title: 'Delete Batches?',
+      message: `Delete ${count} batch${count > 1 ? 'es' : ''}? This cannot be undone.`,
+      confirmText: 'Delete',
+      confirmColor: 'red',
+      icon: <FaExclamationTriangle />
+    });
+
+    if (!confirmed) return;
+
     onDeleteBatches(Array.from(selectedBatches));
   };
 
   const handleCompleteSelected = async () => {
-    const readyBatchIds = Array.from(selectedBatches);
-    for (const batchId of readyBatchIds) {
-      await onUpdate('Completed', null, batchId, { keepOpen: true });
+    if (isProcessing) return;
+
+    const count = selectedBatches.size;
+    const confirmed = await showConfirm({
+      title: 'Complete Batches?',
+      message: `Mark ${count} batch${count > 1 ? 'es' : ''} as completed? This will move ${count > 1 ? 'them' : 'it'} to the completed runs list.`,
+      confirmText: 'Complete',
+      confirmColor: 'green',
+      icon: <FaCheckCircle />
+    });
+
+    if (!confirmed) return;
+
+    setIsProcessing(true);
+    try {
+      const readyBatchIds = Array.from(selectedBatches);
+      for (const batchId of readyBatchIds) {
+        await onUpdate('Completed', null, batchId, { keepOpen: true });
+      }
+      setSelectedBatches(new Set());
+    } finally {
+      setIsProcessing(false);
     }
-    setSelectedBatches(new Set());
   };
 
   const SelectableBatchRow = ({ batch, category }) => {
@@ -119,7 +171,6 @@ const ManagementModal = ({ product, category, onUpdate, onDeleteBatches, onClose
       }, [batch, category]);
 
     const activateRow = (event) => {
-      event.preventDefault();
       event.stopPropagation();
       handleSelection(batch.id);
     };
@@ -127,7 +178,6 @@ const ManagementModal = ({ product, category, onUpdate, onDeleteBatches, onClose
     return (
       <div
         className={`batch-row ${isSelected ? 'selected' : ''}`}
-        onPointerDown={activateRow}
         onClick={activateRow}
       >
         <div className="batch-details">
@@ -148,20 +198,24 @@ const ManagementModal = ({ product, category, onUpdate, onDeleteBatches, onClose
   };
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal-content wide" onClick={e => e.stopPropagation()}>
+    <>
+      <ConfirmDialog />
+      <div className="modal-backdrop" onClick={onClose}>
+        <div className="modal-content wide" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
           <h2>
-            Manage: {category?.name} {product.flavor}
+            {category?.name} {product.flavor}
             <button className="icon-btn" onClick={() => onOpenModal('editProduct')} style={{marginLeft: '12px'}}><FiEdit /></button>
           </h2>
           <button onClick={onClose} className="close-button">&times;</button>
         </div>
         <div className="modal-body">
           <div className="top-status-bar">
-            <button className="status-btn red" onClick={() => onOpenModal('makeRequest')}>New Production Run</button>
-            <button className="status-btn yellow" onClick={handlePackage} disabled={selectedBatches.size === 0 || !canPackage}>Mark as Packaged</button>
-            <button className="status-btn green" onClick={handleFinalize} disabled={!canFinalize}>Finalize Production</button>
+            <button className="status-btn red" onClick={() => onOpenModal('makeRequest')} disabled={isProcessing}>New Production Run</button>
+            <button className="status-btn yellow" onClick={handlePackage} disabled={selectedBatches.size === 0 || !canPackage || isProcessing}>
+              {isProcessing ? 'Processing...' : 'Ready for Packaging'}
+            </button>
+            <button className="status-btn green" onClick={handleFinalize} disabled={!canFinalize || isProcessing}>Finalize Production</button>
           </div>
           <div className="dashboard-content">
             <div className="info-section left">
@@ -188,8 +242,8 @@ const ManagementModal = ({ product, category, onUpdate, onDeleteBatches, onClose
                   <button className="icon-btn" onClick={() => setShowCompleted(!showCompleted)} title="Toggle Completed Batches"><FaHistory /></button>
                   {selectedBatches.size > 0 ? (
                     Array.from(selectedBatches).every(id => activeBatches.find(b => b.id === id)?.status === 'Ready')
-                      ? <button className="icon-btn" onClick={handleCompleteSelected} title="Move to Completed Runs"><FaCheckCircle color="green" /></button>
-                      : <button className="icon-btn" onClick={handleDeleteSelected} title="Delete Selected Batches"><FaTrash color="red" /></button>
+                      ? <button className="icon-btn" onClick={handleCompleteSelected} disabled={isProcessing} title="Move to Completed Runs"><FaCheckCircle color={isProcessing ? "gray" : "green"} /></button>
+                      : <button className="icon-btn" onClick={handleDeleteSelected} disabled={isProcessing} title="Delete Selected Batches"><FaTrash color={isProcessing ? "gray" : "red"} /></button>
                   ) : null}
                 </h4>
               </div>
@@ -209,6 +263,7 @@ const ManagementModal = ({ product, category, onUpdate, onDeleteBatches, onClose
         </div>
       </div>
     </div>
+    </>
   );
 };
 

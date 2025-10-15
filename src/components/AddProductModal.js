@@ -3,6 +3,9 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import './AddProductModal.css';
 import { db } from '../firebase';
 import { doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { toast } from 'react-toastify';
+import { FaExclamationTriangle } from 'react-icons/fa';
+import { useConfirm } from '../hooks/useConfirm';
 import CategoryContainersModal from './CategoryContainersModal';
 import { combineFlavorName, stripContainerSuffix, normalizeString } from '../utils/containerUtils';
 
@@ -18,6 +21,7 @@ const AddProductModal = ({
   productToEdit,
   categoryToEdit
 }) => {
+  const { showConfirm, ConfirmDialog } = useConfirm();
   const [categoryInput, setCategoryInput] = useState('');
   const [flavor, setFlavor] = useState('');
   const [categorySku, setCategorySku] = useState('');
@@ -189,19 +193,43 @@ const AddProductModal = ({
 
   const handleSubmit = (e) => {
     e.preventDefault();
+
+    // Validation
     const finalCategory = normalizeString(categoryInput);
     const finalFlavor = normalizeString(combinedFlavor);
+    const finalCategorySku = normalizeString(categorySku);
+    const finalFlavorSku = normalizeString(flavorSku);
 
-    if (!finalCategory || !finalFlavor) {
-      alert('Please fill out both category and flavor.');
+    if (!finalCategory || finalCategory.trim() === '') {
+      toast.error('Category is required');
+      return;
+    }
+
+    if (!finalFlavor || finalFlavor.trim() === '') {
+      toast.error('Flavor is required');
+      return;
+    }
+
+    if (!finalCategorySku || finalCategorySku.trim() === '') {
+      toast.error('Category SKU is required');
+      return;
+    }
+
+    if (!finalFlavorSku || finalFlavorSku.trim() === '') {
+      toast.error('Flavor SKU is required');
+      return;
+    }
+
+    if (selectedContainers.length === 0) {
+      toast.error('Please select at least one container');
       return;
     }
 
     onSubmit({
       category: finalCategory,
       flavor: finalFlavor,
-      categorySku: normalizeString(categorySku),
-      flavorSku: normalizeString(flavorSku),
+      categorySku: finalCategorySku,
+      flavorSku: finalFlavorSku,
       selectedContainers,
       containerName: normalizeString(selectedContainer?.name),
       containerSku,
@@ -210,7 +238,7 @@ const AddProductModal = ({
 
   const handleSaveContainers = async (payload) => {
     if (!selectedCategory) {
-      alert('Please create the main product first before managing containers for a new category.');
+      toast.error('Please create the main product first before managing containers for a new category.');
       return;
     }
 
@@ -254,9 +282,10 @@ const AddProductModal = ({
 
       setIsContainersModalOpen(false);
       onDataRefresh && onDataRefresh();
+      toast.success('Containers updated successfully');
     } catch (error) {
       console.error('Error updating containers: ', error);
-      alert('Failed to update containers.');
+      toast.error(`Failed to update containers: ${error.message || 'Unknown error'}`);
     }
   };
 
@@ -265,25 +294,36 @@ const AddProductModal = ({
     const catId = selectedCategory.id;
     const inUseCount = Object.values(products || {}).filter(p => p.categoryId === catId).length;
     if (inUseCount > 0) {
-      alert(`Cannot delete category in use by ${inUseCount} product(s). Move or delete those products first.`);
+      toast.error(`Cannot delete category in use by ${inUseCount} product(s). Move or delete those products first.`);
       return;
     }
-    if (!window.confirm(`Delete category "${selectedCategory.name}"? This cannot be undone.`)) return;
+
+    const confirmed = await showConfirm({
+      title: 'Delete Category?',
+      message: `Delete category "${selectedCategory.name}"? This cannot be undone.`,
+      confirmText: 'Delete',
+      confirmColor: 'red',
+      icon: <FaExclamationTriangle />
+    });
+
+    if (!confirmed) return;
+
     try {
       await deleteDoc(doc(db, 'categories', catId));
       setSelectedCategory(null);
       setCategoryInput('');
       setCategorySku('');
       onDataRefresh && onDataRefresh();
-      alert('Category deleted.');
+      toast.success('Category deleted successfully');
     } catch (err) {
       console.error('Failed to delete category', err);
-      alert('Failed to delete category.');
+      toast.error(`Failed to delete category: ${err.message || 'Unknown error'}`);
     }
   };
 
   return (
     <>
+      <ConfirmDialog />
       <div className="modal-backdrop" onClick={onClose}>
         <form className="modal-content" onClick={(e) => e.stopPropagation()} onSubmit={handleSubmit}>
           <div className="modal-header">
@@ -323,6 +363,7 @@ const AddProductModal = ({
                     setCategoryInput(val);
                     // The useEffect will handle finding and setting the selected category
                   }}
+                  required
                   onBlur={async (e) => {
                     const newName = e.target.value.toString().trim();
                     if (!newName) return;
@@ -353,6 +394,7 @@ const AddProductModal = ({
                   value={categorySku}
                   onChange={(e) => setCategorySku(e.target.value)}
                   placeholder="e.g., SK"
+                  required
                 />
               </div>
             </div>
@@ -427,6 +469,7 @@ const AddProductModal = ({
                     }
                   }}
                   placeholder="e.g., Blue Raspberry"
+                  required
                 />
               </div>
 
@@ -440,6 +483,7 @@ const AddProductModal = ({
                     value={flavorSku}
                     onChange={(e) => { setFlavorSku(e.target.value); setSkuTouched(true); }}
                     placeholder="e.g., BLURAS"
+                    required
                   />
                 </div>
               </div>

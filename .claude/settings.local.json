@@ -13,7 +13,10 @@
       "Bash(fi)",
       "Bash(curl:*)",
       "Bash(pkill:*)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(cat:*)",
+      "Bash(del:*)",
+      "Bash(npx eslint:*)"
     ],
     "deny": [],
     "ask": []

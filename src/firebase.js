@@ -1,6 +1,6 @@
 // src/firebase.js
 import { initializeApp } from "firebase/app";
-import { getFirestore } from "firebase/firestore";
+import { getFirestore, enableIndexedDbPersistence } from "firebase/firestore";
 import {
   getAuth,
   GoogleAuthProvider,
@@ -34,6 +34,18 @@ const app = initializeApp(firebaseConfig);
 // Initialize Cloud Firestore and get a reference to the service
 const db = getFirestore(app);
 
+// Enable offline persistence for Firestore
+// This allows the app to work offline and sync when back online
+enableIndexedDbPersistence(db).catch((err) => {
+  if (err.code === 'failed-precondition') {
+    // Multiple tabs open, persistence can only be enabled in one tab at a time
+    console.warn('Offline persistence: Multiple tabs open, using memory cache only');
+  } else if (err.code === 'unimplemented') {
+    // The current browser doesn't support persistence
+    console.warn('Offline persistence: Browser does not support offline mode');
+  }
+});
+
 // Initialize Firebase Auth
 const auth = getAuth(app);
 
@@ -42,11 +54,8 @@ googleProvider.setCustomParameters({
   prompt: 'select_account',
 });
 
-// Initial whitelist of allowed email addresses
-// This will be synced with Firestore on first run
-export const INITIAL_ALLOWED_EMAILS = [
-  'donnyp02@gmail.com',
-  'dgadlin@gmail.com'
-];
+// Initial whitelist - removed from client code for privacy
+// Whitelist is now managed entirely in Firestore
+export const INITIAL_ALLOWED_EMAILS = [];
 
 export { db, auth, googleProvider };
