@@ -18,17 +18,9 @@ console.log('[firebase.js] Firebase imports complete');
 const currentDomain = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
 const currentOrigin = typeof window !== 'undefined' ? window.location.origin : '';
 
-// Use the current domain as authDomain when on Vercel
-// This ensures OAuth state persists correctly across the redirect
-let authDomain;
-if (currentDomain.includes('vercel.app')) {
-  authDomain = currentDomain; // Use Vercel domain
-  console.log('[Firebase] Using Vercel domain as authDomain for proper OAuth redirect handling');
-} else if (currentDomain === 'localhost' || currentDomain === '127.0.0.1') {
-  authDomain = 'localhost';
-} else {
-  authDomain = process.env.REACT_APP_FIREBASE_AUTH_DOMAIN; // Fallback
-}
+// MUST use Firebase authDomain - Vercel doesn't have /__/auth/handler endpoint
+// Popup mode works fine with any authDomain
+const authDomain = process.env.REACT_APP_FIREBASE_AUTH_DOMAIN;
 
 console.log('[Firebase] Current origin:', currentOrigin);
 console.log('[Firebase] Current domain:', currentDomain);

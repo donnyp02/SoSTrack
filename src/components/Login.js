@@ -35,14 +35,9 @@ const Login = () => {
   }, []);
 
   const shouldUseRedirect = () => {
-    // Use redirect on mobile devices for better UX (avoids popup blockers)
-    // Now that authDomain matches the actual domain, redirect should work
-    if (typeof window === 'undefined') return true;
-    const ua = navigator.userAgent;
-    const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(ua);
-    const isStandalone = window.matchMedia && window.matchMedia('(display-mode: standalone)').matches;
-    console.log('[Login] shouldUseRedirect - isMobile:', isMobile, 'isStandalone:', isStandalone);
-    return isMobile || isStandalone;
+    // ALWAYS use popup - redirect doesn't work on Vercel (no /__/auth/handler endpoint)
+    // Popup works reliably on both mobile and desktop
+    return false;
   };
 
   const handleBypassAuth = () => {
@@ -175,7 +170,7 @@ const Login = () => {
         <div className="login-footer">
           <p>Secure access for authorized users only</p>
           <p style={{ fontSize: '10px', marginTop: '10px', color: '#666' }}>
-            v2.0.18 | Build: {new Date().toISOString().split('T')[0]}
+            v2.0.19 - Popup Mode | Build: {new Date().toISOString().split('T')[0]}
           </p>
         </div>
 
