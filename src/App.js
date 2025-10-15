@@ -28,6 +28,7 @@ import NotificationModal from './components/NotificationModal';
 import ReportsModal from './components/ReportsModal';
 import CsvImportPreviewModal from './components/CsvImportPreviewModal';
 import ErrorBoundary from './components/ErrorBoundary';
+import LotTrackingPanel from './components/LotTrackingPanel';
 import { FaCog, FaExclamationTriangle } from 'react-icons/fa';
 import { combineFlavorName, stripContainerSuffix, normalizeString } from './utils/containerUtils';
 
@@ -173,6 +174,126 @@ function App() {
     });
     return counts;
   }, [batches]);
+
+  const lotTrackingData = useMemo(() => {
+    if (!batches || !products || !categories) return [];
+
+    const toDate = (value) => {
+      if (!value) return null;
+      if (value instanceof Date) return value;
+      if (typeof value.toDate === 'function') return value.toDate();
+      if (typeof value.toMillis === 'function') return new Date(value.toMillis());
+      if (typeof value === 'number') return new Date(value);
+      return null;
+    };
+
+    const defaultShelfLifeDays = 45;
+
+    return Object.values(batches).map((batch) => {
+      const product = products[batch.productId] || {};
+      const category = categories[batch.categoryId] || {};
+
+      const productionDate = toDate(batch.dateStarted);
+      const readyDate = toDate(batch.dateReady);
+      const saleByOverride = toDate(batch.saleByDate);
+      const shelfLifeDays =
+        batch.shelfLifeDays ??
+        product.shelfLifeDays ??
+        category.shelfLifeDays ??
+        defaultShelfLifeDays;
+
+      const targetDate = readyDate || productionDate;
+      const saleBy =
+        saleByOverride ||
+        (targetDate ? new Date(targetDate.getTime() + shelfLifeDays * 24 * 60 * 60 * 1000) : null);
+
+      let status = 'Pending';
+      if (batch.status === 'Ready') status = 'Ready';
+      else if (batch.status === 'Completed') status = 'Consumed';
+      else if (batch.status === 'Hold') status = 'Hold';
+      if (Array.isArray(batch.flags) && batch.flags.includes('recall')) {
+        status = 'Recalled';
+      }
+
+      const countedPackages = batch.finalCount?.countedPackages || [];
+      const quantityLabel = countedPackages.length
+        ? countedPackages
+            .map((pkg) => {
+              const template =
+                category.containerTemplates?.find((t) => t.id === pkg.packageId) ||
+                (product.packageOptions || []).find((t) => t.id === pkg.packageId);
+              const label = template?.name || template?.label || 'Package';
+              return `${pkg.quantity} × ${label}`;
+            })
+            .join(', ')
+        : batch.request?.calculatedWeightLbs
+        ? `${batch.request.calculatedWeightLbs} lbs planned`
+        : null;
+
+      const ingredients =
+        batch.ingredients ||
+        product.ingredients ||
+        category.ingredients ||
+        (product.flavor ? [product.flavor] : []);
+
+      const timeline = [
+        productionDate && {
+          date: productionDate.toLocaleDateString(),
+          label: 'Production started',
+          actor: 'Kitchen'
+        },
+        readyDate && {
+          date: readyDate.toLocaleDateString(),
+          label: 'Final count verified',
+          actor: 'Packaging'
+        },
+        saleBy && {
+          date: saleBy.toLocaleDateString(),
+          label: 'Sale-by date',
+          actor: 'Shelf life monitor'
+        }
+      ].filter(Boolean);
+
+      const locations = batch.locations || batch.storageLocations || [];
+      const primaryLocation =
+        locations[0]?.name ||
+        batch.primaryLocation ||
+        batch.request?.targetLocation ||
+        'Vault storage';
+
+      const lastMovement =
+        batch.statusSetAt && toDate(batch.statusSetAt)
+          ? toDate(batch.statusSetAt).toLocaleDateString()
+          : readyDate
+          ? `${readyDate.toLocaleDateString()} (Ready)`
+          : productionDate
+          ? `${productionDate.toLocaleDateString()} (Started)`
+          : null;
+
+      return {
+        id: batch.id,
+        lotNumber:
+          batch.lotNumber ||
+          batch.lotId ||
+          (batch.id ? `LOT-${batch.id.slice(-6).toUpperCase()}` : 'Unassigned'),
+        productName: product.displayName || combineFlavorName(category?.name, product?.flavor || product?.name),
+        categoryName: category?.name || 'Uncategorized',
+        status,
+        saleBy,
+        quantityUnits: batch.finalCount?.totalUnits,
+        quantityLabel,
+        primaryLocation,
+        locations: Array.isArray(locations)
+          ? locations
+          : [{ name: primaryLocation, quantity: batch.finalCount?.totalUnits }],
+        ingredients,
+        notes: batch.qcNotes || product.qcNotes,
+        alert: batch.recallReason,
+        timeline,
+        lastMovement
+      };
+    });
+  }, [batches, products, categories]);
 
   const handleDataUpdate = async (newStatus, data = null, batchId = null, options = {}) => {
     const product = products[selectedProductId];
@@ -653,6 +774,9 @@ function App() {
           {tabCounts.Ready > 0 && <span className="tab-badge ready">{tabCounts.Ready}</span>}
         </button>
         <button className={`tab-button ${activeTab === 'Inventory' ? 'active' : ''}`} onClick={() => setActiveTab('Inventory')}>Inventory</button>
+        <button className={`tab-button ${activeTab === 'LotTracking' ? 'active' : ''}`} onClick={() => setActiveTab('LotTracking')}>
+          Lot Tracking
+        </button>
       </nav>
       <main>
         {(activeTab === 'Production' || activeTab === 'Packaging' || activeTab === 'Shipping') && (
@@ -687,6 +811,15 @@ function App() {
             showReportsButton={true}
             onImportClick={() => setActiveModal('importCsvPanel')}
             onReportsClick={() => setActiveModal('reports')}
+          />
+        )}
+        {activeTab === 'LotTracking' && (
+          <LotTrackingPanel
+            lots={lotTrackingData}
+            loading={loading}
+            onInspectLot={(lot) => {
+              console.debug('Inspect lot', lot?.lotNumber);
+            }}
           />
         )}
       </main>
