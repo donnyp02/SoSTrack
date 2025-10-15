@@ -10,19 +10,7 @@ const Login = () => {
 
   // Note: getRedirectResult is handled in AuthContext to avoid calling it twice
 
-  // Capture logs for on-screen debugging - use localStorage to persist across redirects
-  const addDebugLog = (message) => {
-    try {
-      const logs = JSON.parse(localStorage.getItem('debug_logs') || '[]');
-      const newLogs = [...logs.slice(-15), `${new Date().toLocaleTimeString()}: ${message}`];
-      localStorage.setItem('debug_logs', JSON.stringify(newLogs));
-      setDebugInfo(newLogs);
-    } catch (e) {
-      console.error('Failed to save debug log', e);
-    }
-  };
-
-  // Load existing logs from localStorage on mount
+  // Load existing logs from localStorage on mount (console override is now in index.js)
   useState(() => {
     try {
       const savedLogs = JSON.parse(localStorage.getItem('debug_logs') || '[]');
@@ -30,23 +18,20 @@ const Login = () => {
     } catch (e) {
       console.error('Failed to load debug logs', e);
     }
+  });
 
-    // Override console.log to capture Firebase logs on mobile
-    const originalLog = console.log;
-    const originalError = console.error;
-
-    console.log = (...args) => {
-      originalLog(...args);
-      const msg = args.join(' ');
-      if (msg.includes('[Firebase]') || msg.includes('[AuthContext]') || msg.includes('[Login]')) {
-        addDebugLog(msg);
+  // Refresh logs periodically to show new entries
+  useState(() => {
+    const interval = setInterval(() => {
+      try {
+        const savedLogs = JSON.parse(localStorage.getItem('debug_logs') || '[]');
+        setDebugInfo(savedLogs);
+      } catch (e) {
+        // Ignore
       }
-    };
+    }, 500); // Refresh every 500ms
 
-    console.error = (...args) => {
-      originalError(...args);
-      addDebugLog('ERROR: ' + args.join(' '));
-    };
+    return () => clearInterval(interval);
   });
 
   const shouldUseRedirect = () => {
