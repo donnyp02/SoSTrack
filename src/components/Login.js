@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { signInWithRedirect, getRedirectResult, signInWithPopup, onAuthStateChanged } from 'firebase/auth';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { signInWithRedirect, getRedirectResult, signInWithPopup } from 'firebase/auth';
 import { auth, googleProvider, INITIAL_ALLOWED_EMAILS } from '../firebase';
 import { db } from '../firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
@@ -78,11 +78,12 @@ const Login = () => {
         const result = await getRedirectResult(auth);
         if (!isMounted) return;
         if (result) {
+          // User just completed OAuth redirect flow
           await handleAuthResult(result);
-        } else if (auth.currentUser) {
-          await handleAuthResult({ user: auth.currentUser });
+        } else {
+          // No redirect result, but check if user is already logged in
+          setLoading(false);
         }
-        setLoading(false);
       } catch (error) {
         console.error('Redirect sign-in error:', error);
         if (isMounted) {
@@ -98,20 +99,6 @@ const Login = () => {
     return () => {
       isMounted = false;
     };
-  }, [handleAuthResult, whitelistLoaded]);
-
-  useEffect(() => {
-    if (!whitelistLoaded) return;
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (!user) {
-        processedUserRef.current = null;
-        setLoading(false);
-        return;
-      }
-      if (processedUserRef.current === user.uid) return;
-      await handleAuthResult({ user });
-    });
-    return () => unsubscribe();
   }, [handleAuthResult, whitelistLoaded]);
 
   const shouldUseRedirect = () => {

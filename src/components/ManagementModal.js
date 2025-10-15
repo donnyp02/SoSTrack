@@ -1,7 +1,7 @@
 // src/components/ManagementModal.js
 import React, { useState, useMemo, useEffect } from 'react';
 import './ManagementModal.css';
-import { FaCog, FaHistory, FaTrash } from 'react-icons/fa';
+import { FaCog, FaHistory, FaTrash, FaCheckCircle } from 'react-icons/fa';
 import { FiEdit } from 'react-icons/fi';
 
 // (Other modal imports would be here)
@@ -77,6 +77,14 @@ const ManagementModal = ({ product, category, onUpdate, onDeleteBatches, onClose
 
   const handleDeleteSelected = () => {
     onDeleteBatches(Array.from(selectedBatches));
+  };
+
+  const handleCompleteSelected = async () => {
+    const readyBatchIds = Array.from(selectedBatches);
+    for (const batchId of readyBatchIds) {
+      await onUpdate('Completed', null, batchId, { keepOpen: true });
+    }
+    setSelectedBatches(new Set());
   };
 
   const SelectableBatchRow = ({ batch, category }) => {
@@ -178,7 +186,11 @@ const ManagementModal = ({ product, category, onUpdate, onDeleteBatches, onClose
               <div className="batch-list-header">
                 <h4>Active Production Runs ({activeBatches.length})
                   <button className="icon-btn" onClick={() => setShowCompleted(!showCompleted)} title="Toggle Completed Batches"><FaHistory /></button>
-                  {selectedBatches.size > 0 && (<button className="icon-btn" onClick={handleDeleteSelected} title="Delete Selected Batches"><FaTrash color="red" /></button>)}
+                  {selectedBatches.size > 0 ? (
+                    Array.from(selectedBatches).every(id => activeBatches.find(b => b.id === id)?.status === 'Ready')
+                      ? <button className="icon-btn" onClick={handleCompleteSelected} title="Move to Completed Runs"><FaCheckCircle color="green" /></button>
+                      : <button className="icon-btn" onClick={handleDeleteSelected} title="Delete Selected Batches"><FaTrash color="red" /></button>
+                  ) : null}
                 </h4>
               </div>
               <div className="batch-list">

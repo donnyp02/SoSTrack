@@ -188,6 +188,7 @@ function App() {
       const category = categories[product.categoryId];
       const productBatches = Object.values(batches || {}).filter(b => b.productId === product.id);
       const sortedBatches = [...productBatches].sort((a,b) => (b.dateStarted?.toMillis() || 0) - (a.dateStarted?.toMillis() || 0));
+      const statusSet = new Set(sortedBatches.map(b => b.status).filter(status => !!status));
 
       const packageOptions = (category?.containerTemplates || []).map(template => {
         const inventoryItem = (product.containerInventory || []).find(inv => inv.templateId === template.id);
@@ -214,7 +215,8 @@ function App() {
         onHandUnits: totalUnits,
         batches: sortedBatches,
         status: overallStatus,
-        packageOptions
+        packageOptions,
+        statusHistory: Array.from(statusSet)
       };
     });
 
@@ -229,8 +231,20 @@ function App() {
     const defaultPriority = { Make: 1, Package: 2, Ready: 3, Idle: 4, Completed: 5 };
     const statusPriority = priorityByTab[activeTab] || defaultPriority;
     combined.sort((a, b) => {
-      const priorityA = statusPriority[a.status] || 6;
-      const priorityB = statusPriority[b.status] || 6;
+      const getBestRank = (product) => {
+        const statuses = Array.isArray(product.statusHistory) ? product.statusHistory : [];
+        let best = statusPriority[product.status] ?? Infinity;
+        statuses.forEach(status => {
+          const rank = statusPriority[status];
+          if (rank !== undefined && rank < best) {
+            best = rank;
+          }
+        });
+        return Number.isFinite(best) ? best : 99;
+      };
+
+      const priorityA = getBestRank(a);
+      const priorityB = getBestRank(b);
       if (priorityA !== priorityB) return priorityA - priorityB;
       const categoryNameA = categories[a.categoryId]?.name || '';
       const categoryNameB = categories[b.categoryId]?.name || '';
@@ -250,7 +264,7 @@ function App() {
     return counts;
   }, [batches]);
 
-  const handleDataUpdate = async (newStatus, data = null, batchId = null) => {
+  const handleDataUpdate = async (newStatus, data = null, batchId = null, options = {}) => {
     const product = products[selectedProductId];
     try {
       if (newStatus === 'Make') {
@@ -275,8 +289,12 @@ function App() {
         batch.update(doc(db, "batches", batchId), { status: 'Ready', finalCount: data, dateReady: serverTimestamp(), request: null });
         batch.update(doc(db, "products", product.id), { containerInventory: newInventory });
         await batch.commit();
+      } else if (batchId && newStatus === 'Completed') {
+        await updateDoc(doc(db, "batches", batchId), { status: 'Completed', statusSetAt: serverTimestamp() });
       }
-      handleCloseModal();
+      if (!options.keepOpen) {
+        handleCloseModal();
+      }
       toast.success('Status updated successfully');
     } catch (error) {
       console.error("Error updating status: ", error);
