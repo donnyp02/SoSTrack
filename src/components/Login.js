@@ -159,6 +159,9 @@ const Login = () => {
 
         <div className="login-footer">
           <p>Secure access for authorized users only</p>
+          <p style={{ fontSize: '10px', marginTop: '10px', color: '#666' }}>
+            v2.0.15 | Build: {new Date().toISOString().split('T')[0]}
+          </p>
         </div>
 
         {debugInfo.length > 0 && (
