@@ -77,13 +77,25 @@ const Login = () => {
         // CRITICAL: Set persistence BEFORE redirect for mobile
         console.log('[Login] Setting LOCAL persistence before redirect...');
         console.log('[Login] Current URL:', window.location.href);
-        await setPersistence(auth, browserLocalPersistence);
-        console.log('[Login] Persistence set, starting redirect...');
+        console.log('[Login] Auth domain being used:', auth.config.authDomain);
 
-        // Ensure we redirect back to the current domain, not firebaseapp.com
-        await signInWithRedirect(auth, googleProvider);
-        // Execution stops here - page will redirect
-        return;
+        try {
+          await setPersistence(auth, browserLocalPersistence);
+          console.log('[Login] Persistence set, starting redirect...');
+
+          // Ensure we redirect back to the current domain
+          await signInWithRedirect(auth, googleProvider);
+          console.log('[Login] ⚠️ This log should NOT appear - redirect should have started');
+          // Execution stops here - page will redirect
+          return;
+        } catch (redirectError) {
+          console.error('[Login] REDIRECT FAILED:', redirectError);
+          console.error('[Login] Error code:', redirectError.code);
+          console.error('[Login] Error message:', redirectError.message);
+          toast.error(`Redirect failed: ${redirectError.message}`);
+          setLoading(false);
+          return;
+        }
       } else {
         // Desktop: use popup
         const result = await signInWithPopup(auth, googleProvider);
@@ -163,7 +175,7 @@ const Login = () => {
         <div className="login-footer">
           <p>Secure access for authorized users only</p>
           <p style={{ fontSize: '10px', marginTop: '10px', color: '#666' }}>
-            v2.0.17 | Build: {new Date().toISOString().split('T')[0]}
+            v2.0.18 | Build: {new Date().toISOString().split('T')[0]}
           </p>
         </div>
 

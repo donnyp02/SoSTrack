@@ -16,19 +16,19 @@ const addDebugLog = (message) => {
     // Ignore errors
   }
 
-  // ALSO write directly to DOM for immediate visibility
-  try {
-    let debugDiv = document.getElementById('emergency-debug');
-    if (!debugDiv) {
-      debugDiv = document.createElement('div');
-      debugDiv.id = 'emergency-debug';
-      debugDiv.style.cssText = 'position:fixed;top:0;left:0;right:0;background:red;color:white;padding:5px;font-size:10px;z-index:99999;max-height:100px;overflow:auto;font-family:monospace;';
-      document.body.appendChild(debugDiv);
-    }
-    debugDiv.innerHTML = `<strong>EMERGENCY DEBUG:</strong> ${message}<br>` + debugDiv.innerHTML;
-  } catch (e) {
-    // Ignore if DOM not ready
-  }
+  // DISABLED: Red banner was blocking UI
+  // try {
+  //   let debugDiv = document.getElementById('emergency-debug');
+  //   if (!debugDiv) {
+  //     debugDiv = document.createElement('div');
+  //     debugDiv.id = 'emergency-debug';
+  //     debugDiv.style.cssText = 'position:fixed;top:0;left:0;right:0;background:red;color:white;padding:5px;font-size:10px;z-index:99999;max-height:100px;overflow:auto;font-family:monospace;';
+  //     document.body.appendChild(debugDiv);
+  //   }
+  //   debugDiv.innerHTML = `<strong>EMERGENCY DEBUG:</strong> ${message}<br>` + debugDiv.innerHTML;
+  // } catch (e) {
+  //   // Ignore if DOM not ready
+  // }
 };
 
 // Override console.log and console.error to capture to localStorage
