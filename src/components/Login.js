@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { signInWithRedirect, getRedirectResult, signInWithPopup } from 'firebase/auth';
+import { useState } from 'react';
+import { signInWithRedirect, signInWithPopup } from 'firebase/auth';
 import { auth, googleProvider } from '../firebase';
 import { toast } from 'react-toastify';
 import './Login.css';
@@ -7,43 +7,7 @@ import './Login.css';
 const Login = () => {
   const [loading, setLoading] = useState(false);
 
-  // Handle redirect result on component mount
-  useEffect(() => {
-    let isMounted = true;
-    const resolveRedirect = async () => {
-      try {
-        console.log('[Login] Checking for redirect result...');
-        const result = await getRedirectResult(auth);
-
-        if (!isMounted) {
-          console.log('[Login] Component unmounted, skipping redirect processing');
-          return;
-        }
-
-        if (result) {
-          console.log('[Login] Redirect result found, user:', result.user?.email);
-          // AuthContext will handle whitelist validation
-          toast.success('Signing in...');
-        } else {
-          console.log('[Login] No redirect result found');
-        }
-      } catch (error) {
-        console.error('[Login] Redirect sign-in error:', error);
-        if (isMounted) {
-          const message = error.code === 'auth/unauthorized-domain'
-            ? 'This URL is not authorized in your Firebase project. Add it to the allowed domains list or use an approved hostname.'
-            : 'Failed to sign in. Please try again.';
-          toast.error(message);
-        }
-      }
-    };
-
-    resolveRedirect();
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+  // Note: getRedirectResult is handled in AuthContext to avoid calling it twice
 
   const shouldUseRedirect = () => {
     if (typeof window === 'undefined') return true;

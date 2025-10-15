@@ -28,12 +28,25 @@ const db = getFirestore(app);
 
 // Initialize Firebase Auth
 const auth = getAuth(app);
-setPersistence(auth, browserLocalPersistence)
-  .catch(() => setPersistence(auth, browserSessionPersistence))
-  .catch(() => setPersistence(auth, inMemoryPersistence))
-  .catch((error) => {
-    console.warn('Failed to configure auth persistence', error);
-  });
+
+// Ensure persistence is set synchronously before any auth operations
+// For mobile redirect to work, we MUST use browserLocalPersistence
+(async () => {
+  try {
+    await setPersistence(auth, browserLocalPersistence);
+    console.log('[Firebase] Auth persistence set to LOCAL');
+  } catch (error) {
+    console.error('[Firebase] Failed to set LOCAL persistence, trying SESSION:', error);
+    try {
+      await setPersistence(auth, browserSessionPersistence);
+      console.log('[Firebase] Auth persistence set to SESSION');
+    } catch (error2) {
+      console.error('[Firebase] Failed to set SESSION persistence, using IN_MEMORY:', error2);
+      await setPersistence(auth, inMemoryPersistence);
+    }
+  }
+})();
+
 const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({
   prompt: 'select_account',

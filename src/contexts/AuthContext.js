@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { onAuthStateChanged, signOut as firebaseSignOut } from 'firebase/auth';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import { onAuthStateChanged, signOut as firebaseSignOut, getRedirectResult } from 'firebase/auth';
 import { auth, INITIAL_ALLOWED_EMAILS } from '../firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -9,11 +9,42 @@ const AuthContext = createContext(null);
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const isProcessingRedirect = useRef(false);
+
+  // Check for redirect result BEFORE setting up auth listener
+  useEffect(() => {
+    const checkRedirect = async () => {
+      try {
+        console.log('[AuthContext] Checking for redirect result on mount...');
+        isProcessingRedirect.current = true;
+        const result = await getRedirectResult(auth);
+
+        if (result) {
+          console.log('[AuthContext] Redirect result found:', result.user?.email);
+          // The onAuthStateChanged listener will handle validation
+        } else {
+          console.log('[AuthContext] No redirect result');
+        }
+      } catch (error) {
+        console.error('[AuthContext] Error checking redirect result:', error);
+      } finally {
+        isProcessingRedirect.current = false;
+      }
+    };
+
+    checkRedirect();
+  }, []);
 
   useEffect(() => {
     console.log('[AuthContext] Setting up auth state listener');
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       console.log('[AuthContext] Auth state changed:', firebaseUser ? firebaseUser.email : 'no user');
+
+      // Don't process if we're still checking redirect result
+      if (isProcessingRedirect.current) {
+        console.log('[AuthContext] Still processing redirect, waiting...');
+        return;
+      }
 
       if (!firebaseUser) {
         console.log('[AuthContext] No user, setting state to null');
