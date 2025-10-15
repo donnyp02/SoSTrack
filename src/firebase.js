@@ -1,6 +1,4 @@
 // src/firebase.js
-console.log('[firebase.js] FILE LOADING - This proves the module is being imported');
-
 import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 import {
@@ -12,6 +10,7 @@ import {
   inMemoryPersistence,
 } from "firebase/auth";
 
+console.log('[firebase.js] FILE LOADING - This proves the module is being imported');
 console.log('[firebase.js] Firebase imports complete');
 
 // Your web app's Firebase configuration
