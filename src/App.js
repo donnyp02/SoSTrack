@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useMemo } from 'react';
+﻿import { useState, useEffect, useMemo, useRef } from 'react';
 import './App.css';
 import { db, auth } from './firebase';
 import { collection, addDoc, doc, updateDoc, writeBatch, serverTimestamp, onSnapshot } from "firebase/firestore";
@@ -18,7 +18,6 @@ import EditInventoryModal from './components/EditInventoryModal';
 import ErrorBoundary from './components/ErrorBoundary';
 import InventoryModal from './components/InventoryModal';
 import WhitelistManager from './components/WhitelistManager';
-import VirtualizedProductList from './components/VirtualizedProductList';
 import Inventory from './components/Inventory';
 import { InventoryProvider } from './contexts/InventoryContext';
 import NotificationModal from './components/NotificationModal';
@@ -45,6 +44,7 @@ function App() {
   const [notification, setNotification] = useState(null);
   const [productToDelete, setProductToDelete] = useState(null);
   const [isDeletingProduct, setIsDeletingProduct] = useState(false);
+  const previousBatchStatuses = useRef({});
 
   useEffect(() => {
     if (darkMode) {
@@ -103,24 +103,11 @@ function App() {
       }
     );
 
-    // Batches listener with change detection
+    // Batches listener
     const unsubBatches = onSnapshot(
       collection(db, "batches"),
       (snapshot) => {
         const batchesMap = {};
-        snapshot.docChanges().forEach((change) => {
-          const batch = { id: change.doc.id, ...change.doc.data() };
-          if (change.type === 'modified' && !loading) {
-            const productName = products[batch.productId]?.flavor || 'Product';
-            const categoryName = categories[products[batch.productId]?.categoryId]?.name || '';
-            const fullName = `${categoryName} ${productName}`.trim();
-            if (batch.status === 'Package' && activeTab !== 'Packaging') {
-              setNotification(`${fullName} is ready for packaging!`);
-            } else if (batch.status === 'Ready' && activeTab !== 'Shipping') {
-              setNotification(`${fullName} is ready for shipping!`);
-            }
-          }
-        });
         snapshot.forEach(docu => {
           batchesMap[docu.id] = { id: docu.id, ...docu.data() };
         });
@@ -140,7 +127,7 @@ function App() {
       unsubProducts();
       unsubBatches();
     };
-  }, [user, products, categories, loading, activeTab]); // Re-setup listeners if dependencies change
+  }, [user]); // Only re-setup listeners when user changes
 
   useEffect(() => {
     if (loading || Object.keys(batches).length === 0) return;
@@ -160,6 +147,36 @@ function App() {
         batchWrite.commit(); // Real-time listener will update automatically
     }
   }, [batches, loading]);
+
+  // Monitor batch status changes and show notifications based on current tab
+  useEffect(() => {
+    if (loading || !products || !categories || Object.keys(batches).length === 0) return;
+
+    // Check for status changes
+    Object.values(batches || {}).forEach(batch => {
+      const oldStatus = previousBatchStatuses.current[batch.id];
+      const newStatus = batch.status;
+
+      // Only show notification if status actually changed (not on initial load)
+      if (oldStatus && oldStatus !== newStatus) {
+        const product = products[batch.productId];
+        const category = categories[product?.categoryId];
+        const productName = `${category?.name || ''} ${product?.flavor || 'Product'}`.trim();
+
+        // Show notification if status changed to match current tab
+        if (newStatus === 'Package' && activeTab === 'Packaging') {
+          setNotification(`${productName} is ready for packaging!`);
+        } else if (newStatus === 'Ready' && activeTab === 'Shipping') {
+          setNotification(`${productName} is ready for shipping!`);
+        } else if (newStatus === 'Make' && activeTab === 'Production') {
+          setNotification(`New production run started for ${productName}!`);
+        }
+      }
+
+      // Update the ref with current status
+      previousBatchStatuses.current[batch.id] = newStatus;
+    });
+  }, [batches, products, categories, activeTab, loading]);
 
   const displayList = useMemo(() => {
     if (!products || !categories || !batches) return [];
@@ -263,17 +280,52 @@ function App() {
 
   const handleProductEdit = async ({ category: categoryName, flavor, categorySku, flavorSku }) => {
     const product = products[selectedProductId];
-    let category = Object.values(categories || {}).find(cat => cat.name.toLowerCase() === categoryName.toLowerCase());
+    if (!product) {
+      toast.error('Unable to locate product for editing');
+      return;
+    }
+
+    const norm = (s) => (s || '').toString().trim().toLowerCase();
+    const base = (s) => {
+      const normalized = norm(s);
+      return normalized.endsWith('s') ? normalized.slice(0, -1) : normalized;
+    };
+
+    const trimmedCategoryName = (categoryName || '').trim();
+    const normalizedSku = (categorySku || '').toUpperCase().trim();
+    const trimmedFlavor = (flavor || '').trim();
+    const trimmedFlavorSku = (flavorSku || '').trim();
+
+    let category = Object.values(categories || {}).find(
+      (cat) => base(cat?.name) === base(trimmedCategoryName)
+    );
     let categoryId = category?.id;
 
     if (!categoryId) {
-        const newCategoryDoc = await addDoc(collection(db, "categories"), { name: categoryName, sku: categorySku, containerTemplates: [] });
-        categoryId = newCategoryDoc.id;
-    } else if (category.sku !== categorySku) {
-        await updateDoc(doc(db, "categories", categoryId), { sku: categorySku });
+      const newCategoryDoc = await addDoc(collection(db, "categories"), {
+        name: trimmedCategoryName,
+        sku: normalizedSku,
+        containerTemplates: []
+      });
+      categoryId = newCategoryDoc.id;
+    } else {
+      const updates = {};
+      if (normalizedSku && (category.sku || '').toUpperCase() !== normalizedSku) {
+        updates.sku = normalizedSku;
+      }
+      if (trimmedCategoryName && (category.name || '').trim() !== trimmedCategoryName) {
+        updates.name = trimmedCategoryName;
+      }
+      if (Object.keys(updates).length) {
+        await updateDoc(doc(db, "categories", categoryId), updates);
+      }
     }
 
-    await updateDoc(doc(db, "products", product.id), { flavor, categoryId, flavorSku });
+    await updateDoc(doc(db, "products", product.id), {
+      flavor: trimmedFlavor,
+      categoryId,
+      flavorSku: trimmedFlavorSku
+    });
     toast.success('Product updated');
     handleOpenModal('manageProduct');
   };

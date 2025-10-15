@@ -1,4 +1,4 @@
-﻿// src/components/AddProductModal.js
+// src/components/AddProductModal.js
 import React, { useState, useEffect } from 'react';
 import './AddProductModal.css';
 import { db } from '../firebase';
@@ -21,7 +21,6 @@ const AddProductModal = ({
   const [flavorSku, setFlavorSku] = useState('');
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [isContainersModalOpen, setIsContainersModalOpen] = useState(false);
-  const [useSelect, setUseSelect] = useState(true); // legacy flag, no longer used for UI switching
   const [skuTouched, setSkuTouched] = useState(false);
 
   const isEditMode = !!productToEdit;
@@ -32,22 +31,40 @@ const AddProductModal = ({
       setFlavorSku(productToEdit.flavorSku || '');
       setCategoryInput(categoryToEdit?.name || '');
       setCategorySku(categoryToEdit?.sku || '');
-      setUseSelect(!!categoryToEdit?.name);
+      setSelectedCategory(categoryToEdit || null);
     } else {
       setCategoryInput('');
       setCategorySku('');
       setFlavor('');
       setFlavorSku('');
-      setUseSelect(true);
       setSelectedCategory(null);
     }
   }, [isEditMode, productToEdit, categoryToEdit]);
 
   useEffect(() => {
+    if (!categoryInput) {
+      setSelectedCategory(null);
+      return;
+    }
+
     const norm = (s) => (s || '').toString().trim().toLowerCase();
-    const found = Object.values(categories || {}).find(
-      (cat) => norm(cat.name) === norm(categoryInput)
+    const base = (s) => {
+      const normalized = norm(s);
+      return normalized.endsWith('s') ? normalized.slice(0, -1) : normalized;
+    };
+
+    // First try exact match
+    let found = Object.values(categories || {}).find(
+      (cat) => norm(cat?.name) === norm(categoryInput)
     );
+
+    // If no exact match, try base comparison (with plural handling)
+    if (!found) {
+      found = Object.values(categories || {}).find(
+        (cat) => base(cat?.name) === base(categoryInput)
+      );
+    }
+
     setSelectedCategory(found || null);
     if (found) setCategorySku((found.sku || '').toUpperCase());
   }, [categoryInput, categories]);
@@ -73,7 +90,7 @@ const AddProductModal = ({
     }
     const categoryDocRef = doc(db, 'categories', selectedCategory.id);
     try {
-      await updateDoc(categoryDocRef, { packageOptions: newPackageOptions });
+      await updateDoc(categoryDocRef, { containerTemplates: newPackageOptions });
       setIsContainersModalOpen(false);
       onDataRefresh && onDataRefresh();
     } catch (error) {
@@ -143,11 +160,7 @@ const AddProductModal = ({
                   onChange={(e) => {
                     const val = e.target.value;
                     setCategoryInput(val);
-                    const norm = (s) => (s || '').toString().trim().toLowerCase();
-                    const base = (s) => { const n = norm(s); return n.endsWith('s') ? n.slice(0, -1) : n; };
-                    const found = Object.values(categories || {}).find(c => base(c.name) === base(val));
-                    setSelectedCategory(found || null);
-                    if (found) setCategorySku(((found.sku) || '').toUpperCase());
+                    // The useEffect will handle finding and setting the selected category
                   }}
                   onBlur={async (e) => {
                     const newName = e.target.value.toString().trim();
@@ -268,6 +281,7 @@ const AddProductModal = ({
 };
 
 export default AddProductModal;
+
 
 
 

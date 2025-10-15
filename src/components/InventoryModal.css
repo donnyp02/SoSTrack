@@ -34,13 +34,36 @@
   background: #dc3545;
   border: none;
   color: #fff;
-  width: 32px;
-  height: 32px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   cursor: pointer;
-  transition: background 0.2s ease;
+  transition: all 0.2s ease;
+  min-width: 40px;
+  min-height: 40px;
 }
 
 .inventory-delete-btn:hover {
   background: #b52533;
+  transform: scale(1.1);
+}
+
+.inventory-delete-btn:active {
+  transform: scale(1.0);
+}
+
+/* Tablet optimizations */
+@media (min-width: 768px) and (max-width: 1024px) {
+  .modal-content.inventory-modal {
+    max-width: 1000px;
+    padding: 32px;
+  }
+
+  .inventory-delete-btn {
+    width: 52px;
+    height: 52px;
+    min-width: 52px;
+    min-height: 52px;
+    font-size: 1.2em;
+  }
 }

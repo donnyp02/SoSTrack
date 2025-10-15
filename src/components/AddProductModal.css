@@ -179,3 +179,63 @@
   font-weight: 400;
   color: var(--text-muted);
 }
+
+/* Tablet optimizations */
+@media (min-width: 768px) and (max-width: 1024px) {
+  .modal-content {
+    max-width: 850px;
+    padding: 28px;
+  }
+
+  .modal-header h2 {
+    font-size: 1.6em;
+  }
+
+  .close-button {
+    font-size: 3rem;
+  }
+
+  .form-group label {
+    font-size: 1.1em;
+    margin-bottom: 10px;
+  }
+
+  .form-group input, .form-group select {
+    padding: 14px 18px;
+    font-size: 1.1em;
+    min-height: 52px;
+  }
+
+  .add-btn, .manage-btn {
+    padding: 14px 24px;
+    font-size: 1.1em;
+    min-height: 56px;
+  }
+
+  .category-sku-group > input,
+  #flavor-sku-wrap .flavor-sku-group input {
+    height: 44px;
+    line-height: 44px;
+    padding: 10px 14px;
+    font-size: 1.05rem;
+  }
+
+  .flavor-sku-group .sku-prefix {
+    height: 44px;
+    line-height: 44px;
+    padding: 0 14px;
+    font-size: 1.05rem;
+  }
+
+  .product-preview {
+    padding: 18px 20px;
+  }
+
+  .product-preview .preview-value {
+    font-size: 1.2rem;
+  }
+
+  .product-preview .preview-sku {
+    font-size: 1.05rem;
+  }
+}

@@ -13,54 +13,63 @@
 }
 
 .notification-modal {
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
-  padding: 24px;
-  max-width: 400px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 16px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+  padding: 32px;
+  max-width: 500px;
   width: 90%;
   position: relative;
-  animation: slideIn 0.3s ease;
+  animation: slideIn 0.3s ease, pulse 2s ease-in-out infinite;
+  border: 3px solid rgba(255, 255, 255, 0.3);
 }
 
 .notification-content {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 16px;
+  gap: 20px;
+  text-align: center;
 }
 
 .notification-icon {
-  font-size: 2.5em;
+  font-size: 4em;
   flex-shrink: 0;
+  animation: bounce 1s ease infinite;
 }
 
 .notification-message {
-  font-size: 1.1em;
-  color: #333;
+  font-size: 1.4em;
+  color: white;
+  font-weight: 600;
   line-height: 1.5;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
-.notification-close {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  background: none;
+.notification-dismiss-btn {
+  margin-top: 16px;
+  padding: 14px 32px;
+  background: white;
+  color: #667eea;
   border: none;
-  font-size: 1.5em;
-  color: #999;
+  border-radius: 8px;
+  font-size: 1.1em;
+  font-weight: 700;
   cursor: pointer;
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
   transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  min-height: 52px;
+  width: 100%;
 }
 
-.notification-close:hover {
-  background-color: #f0f0f0;
-  color: #333;
+.notification-dismiss-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+  background: #f8f9fa;
+}
+
+.notification-dismiss-btn:active {
+  transform: translateY(0);
 }
 
 @keyframes fadeIn {
@@ -74,12 +83,51 @@
 
 @keyframes slideIn {
   from {
-    transform: translateY(-20px);
+    transform: translateY(-20px) scale(0.95);
     opacity: 0;
   }
   to {
-    transform: translateY(0);
+    transform: translateY(0) scale(1);
     opacity: 1;
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+  }
+  50% {
+    box-shadow: 0 12px 40px rgba(102, 126, 234, 0.6);
+  }
+}
+
+@keyframes bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+/* Tablet optimizations */
+@media (min-width: 768px) and (max-width: 1024px) {
+  .notification-modal {
+    max-width: 600px;
+    padding: 40px;
+  }
+
+  .notification-icon {
+    font-size: 5em;
+  }
+
+  .notification-message {
+    font-size: 1.6em;
+  }
+
+  .notification-dismiss-btn {
+    font-size: 1.2em;
+    min-height: 60px;
   }
 }
 

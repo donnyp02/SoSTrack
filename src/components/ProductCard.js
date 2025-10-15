@@ -6,7 +6,7 @@ const statusColors = { 'Make': '#dc3545', 'Package': '#ffc107', 'Ready': '#28a74
 const statusGradients = { 'Make': 'linear-gradient(to right, rgba(220, 53, 69, 0.25), transparent 40%)', 'Package': 'linear-gradient(to right, rgba(255, 193, 7, 0.25), transparent 40%)', 'Ready': 'linear-gradient(to right, rgba(40, 167, 69, 0.25), transparent 40%)', 'Idle': 'linear-gradient(to right, rgba(108, 117, 125, 0.15), transparent 40%)', 'Completed': 'linear-gradient(to right, rgba(108, 117, 125, 0.15), transparent 40%)' };
 
 const ProductCard = memo(({ product, category, onClick }) => {
-  const { stripedBarStyle, cardBackgroundStyle, statusBadges, inventoryLevel } = useMemo(() => {
+  const { stripedBarStyle, cardBackgroundStyle, statusBadges } = useMemo(() => {
     const batches = product.batches || [];
     const activeStatuses = [...new Set(
         batches
@@ -51,30 +51,7 @@ const ProductCard = memo(({ product, category, onClick }) => {
         color: statusColors[status]
       }));
 
-    // Check inventory level based on package options thresholds
-    let inventoryLevel = 'good'; // good, low, critical
-    const packageOptions = product.packageOptions || [];
-    if (packageOptions.length > 0) {
-      const hasLowStock = packageOptions.some(opt => {
-        const quantity = opt.quantity || 0;
-        const minQty = opt.minQty || 0;
-        return minQty > 0 && quantity < minQty;
-      });
-
-      const hasCriticalStock = packageOptions.some(opt => {
-        const quantity = opt.quantity || 0;
-        const minQty = opt.minQty || 0;
-        return minQty > 0 && quantity < minQty * 0.5; // Critical if below 50% of minimum
-      });
-
-      if (hasCriticalStock) {
-        inventoryLevel = 'critical';
-      } else if (hasLowStock) {
-        inventoryLevel = 'low';
-      }
-    }
-
-    return { stripedBarStyle, cardBackgroundStyle, statusBadges, inventoryLevel };
+    return { stripedBarStyle, cardBackgroundStyle, statusBadges };
   }, [product]);
 
   const formatInventory = () => {
@@ -91,19 +68,6 @@ const ProductCard = memo(({ product, category, onClick }) => {
       <div className="product-info">
         <div className="product-header">
           <h3 className="product-flavor">{category?.name} {product.flavor}</h3>
-          {statusBadges.length > 0 && (
-            <div className="status-badges-inline">
-              {statusBadges.map((badge, idx) => (
-                <span
-                  key={idx}
-                  className="status-badge-inline"
-                  style={{ backgroundColor: badge.color, color: badge.color === '#ffc107' ? '#333' : 'white' }}
-                >
-                  {badge.count}
-                </span>
-              ))}
-            </div>
-          )}
         </div>
       </div>
       <div className="product-status">

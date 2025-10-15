@@ -1,84 +1,167 @@
 /* src/components/CategoryContainersModal.css */
+
+/* Make modal wider to accommodate content */
+.small-modal {
+  max-width: 600px !important;
+  width: 95vw;
+}
+
 .options-list {
   margin-bottom: 20px;
-  border: 1px solid #eee;
-  border-radius: 4px;
-  padding: 10px;
+  border: 2px solid #dee2e6;
+  border-radius: 8px;
+  padding: 12px;
   min-height: 50px;
+  background-color: #f8f9fa;
 }
 
 .no-options {
-  color: #777;
+  color: #495057;
   text-align: center;
   margin: 10px 0;
+  font-weight: 500;
+  font-size: 1em;
 }
 
 .option-item {
   background-color: #f8f9fa;
-  padding: 8px 12px;
-  border-radius: 4px;
-  margin-bottom: 5px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin-bottom: 8px;
   display: flex;
   justify-content: space-between;
   align-items: center;
   cursor: pointer;
+  border: 2px solid #e9ecef;
+  transition: all 0.2s ease;
+}
+
+.option-item span {
+  color: #2c3e50;
+  font-weight: 500;
+  font-size: 1.05em;
 }
 
 .option-item:hover {
-  background-color: #e9ecef;
+  background-color: #e3f2fd;
+  border-color: #007bff;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 123, 255, 0.15);
 }
 
 .add-new-option-container h4 {
   margin-top: 20px;
   margin-bottom: 10px;
-  border-top: 1px solid #eee;
+  border-top: 2px solid #dee2e6;
   padding-top: 20px;
+  color: #212529;
+  font-weight: 600;
+  font-size: 1.1em;
 }
 
 /* NEW: This div will hold the input fields */
 .form-inputs {
   display: grid;
   grid-template-columns: 2fr 1fr;
-  gap: 10px;
+  gap: 12px;
+  margin-bottom: 12px;
 }
 
 .form-inputs input {
-  padding: 10px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
+  padding: 14px 16px;
+  border: 2px solid #dee2e6;
+  border-radius: 8px;
+  font-size: 1em;
+  transition: all 0.2s ease;
+  background-color: #fff;
+}
+
+.form-inputs input:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
+.form-inputs input::placeholder {
+  color: #6c757d;
+  font-weight: 400;
+}
+
+.form-inputs input {
+  color: #212529;
+  font-weight: 500;
 }
 
 /* NEW: This div will hold the buttons below the inputs */
 .form-actions-inline {
   display: flex;
   justify-content: flex-end;
-  gap: 10px;
+  gap: 12px;
   margin-top: 10px;
 }
 
 .form-actions-inline button {
-  padding: 10px 20px;
+  padding: 14px 28px;
   color: white;
   border: none;
-  border-radius: 4px;
+  border-radius: 8px;
   cursor: pointer;
+  font-weight: 600;
+  font-size: 1em;
+  transition: all 0.2s ease;
+  min-height: 48px;
 }
 
 .form-actions-inline .add-update-btn {
   background-color: #007bff;
+  box-shadow: 0 2px 4px rgba(0, 123, 255, 0.2);
+}
+
+.form-actions-inline .add-update-btn:hover {
+  background-color: #0056b3;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 123, 255, 0.3);
+}
+
+.form-actions-inline .add-update-btn:active {
+  transform: translateY(0);
 }
 
 .form-actions-inline .cancel-edit-btn {
   background-color: #6c757d;
+  box-shadow: 0 2px 4px rgba(108, 117, 125, 0.2);
+}
+
+.form-actions-inline .cancel-edit-btn:hover {
+  background-color: #5a6268;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(108, 117, 125, 0.3);
+}
+
+.form-actions-inline .cancel-edit-btn:active {
+  transform: translateY(0);
 }
 
 .save-btn {
   background-color: #28a745;
   color: white;
-  padding: 12px 25px;
-  font-size: 1em;
+  padding: 16px 32px;
+  font-size: 1.1em;
   font-weight: bold;
   border: none;
-  border-radius: 5px;
+  border-radius: 8px;
   cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 3px 6px rgba(40, 167, 69, 0.2);
+  min-height: 52px;
+}
+
+.save-btn:hover {
+  background-color: #218838;
+  transform: translateY(-2px);
+  box-shadow: 0 5px 12px rgba(40, 167, 69, 0.3);
+}
+
+.save-btn:active {
+  transform: translateY(0);
 }

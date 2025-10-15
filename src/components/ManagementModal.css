@@ -29,17 +29,31 @@
 }
 .status-btn {
   flex: 1;
-  padding: 4px 10px; /* CHANGED: Made top buttons even skinnier */
-  font-size: 1em; font-weight: bold;
-  border: 2px solid transparent; border-radius: 8px; cursor: pointer;
+  padding: 8px 12px;
+  font-size: 1em;
+  font-weight: bold;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
   transition: all 0.2s ease-in-out;
+  min-height: 44px;
 }
 .status-btn:disabled { cursor: not-allowed; opacity: 0.5; }
+.status-btn:not(:disabled):hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+.status-btn:not(:disabled):active {
+  transform: translateY(0);
+}
 .status-btn.grey { background-color: #f0f0f0; color: #555; }
 .status-btn.grey:not(:disabled):hover { border-color: #ccc; }
 .status-btn.red { background-color: #dc3545; color: white; }
+.status-btn.red:not(:disabled):hover { background-color: #c82333; }
 .status-btn.yellow { background-color: #ffc107; color: #333; }
+.status-btn.yellow:not(:disabled):hover { background-color: #e0a800; }
 .status-btn.green { background-color: #28a745; color: white; }
+.status-btn.green:not(:disabled):hover { background-color: #218838; }
 .inventory-stats {
   display: flex; justify-content: space-around; text-align: center;
   background-color: #f8f9fa; padding: 15px; border-radius: 8px;
@@ -154,4 +168,62 @@
 @keyframes slide-down {
   from { transform: translateY(-50px); opacity: 0; }
   to { transform: translateY(0); opacity: 1; }
+}
+
+/* Tablet optimizations */
+@media (min-width: 768px) and (max-width: 1024px) {
+  .modal-content {
+    max-width: 850px;
+    padding: 28px;
+  }
+
+  .modal-header h2 {
+    font-size: 1.6em;
+  }
+
+  .close-button {
+    font-size: 3rem;
+  }
+
+  .status-btn {
+    padding: 12px 16px;
+    font-size: 1.15em;
+    min-height: 56px;
+  }
+
+  .batch-row {
+    padding: 12px 16px;
+    font-size: 1em;
+    min-height: 52px;
+  }
+
+  .batch-status-tag {
+    font-size: 0.85em;
+    padding: 3px 8px;
+  }
+
+  .icon-btn {
+    font-size: 1.3em;
+    padding: 8px;
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .inventory-stats {
+    padding: 20px;
+  }
+
+  .stat-item span {
+    font-size: 1.8em;
+  }
+
+  .stat-item small {
+    font-size: 1.1em;
+  }
+
+  .package-list li {
+    padding: 12px 16px;
+    font-size: 1.05em;
+    min-height: 48px;
+  }
 }

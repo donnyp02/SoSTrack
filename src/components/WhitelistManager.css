@@ -17,8 +17,9 @@
 
 .whitelist-header p {
   margin: 0;
-  color: #666;
+  color: #495057;
   font-size: 1.1em;
+  font-weight: 500;
 }
 
 .add-email-section {
@@ -178,7 +179,8 @@
 .whitelist-info ul {
   margin: 0;
   padding-left: 20px;
-  color: #666;
+  color: #495057;
+  font-weight: 500;
 }
 
 .whitelist-info li {

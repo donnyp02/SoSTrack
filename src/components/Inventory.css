@@ -16,7 +16,8 @@
     border: none;
     background-color: transparent;
     cursor: pointer;
-    color: #777;
+    color: #5a5a5a;
+    font-weight: 500;
     margin-bottom: -2px; /* Align with bottom border */
 }
 
@@ -284,4 +285,49 @@ th {
 /* Reduce dead space between top tabs and Inventory sub-tabs */
 .inventory-container {
     padding-top: 0;
+}
+
+/* Tablet optimizations */
+@media (min-width: 768px) and (max-width: 1024px) {
+  .sub-tab-button {
+    padding: 14px 24px;
+    font-size: 1.3em;
+    min-height: 56px;
+  }
+
+  .history-btn {
+    padding: 14px 24px;
+    font-size: 1.1em;
+    min-height: 56px;
+  }
+
+  .history-link {
+    padding: 8px 12px;
+    font-size: 1.05rem;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .icon-button {
+    padding: 8px 10px;
+    min-width: 44px;
+    min-height: 44px;
+    font-size: 1.1em;
+  }
+
+  .btn-file, .btn-primary, .btn-secondary {
+    padding: 14px 20px;
+    font-size: 1.05em;
+    min-height: 52px;
+  }
+
+  th, td {
+    padding: 12px 14px;
+    font-size: 1.05em;
+  }
+
+  .inventory-section-header h2 {
+    font-size: 1.5rem;
+  }
 }
