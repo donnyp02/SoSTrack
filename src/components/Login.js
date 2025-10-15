@@ -1,121 +1,27 @@
-import { useState, useEffect } from 'react';
-import { signInWithRedirect, signInWithPopup, setPersistence, browserLocalPersistence } from 'firebase/auth';
+import { useState } from 'react';
+import { signInWithPopup } from 'firebase/auth';
 import { auth, googleProvider } from '../firebase';
 import { toast } from 'react-toastify';
 import './Login.css';
 
 const Login = () => {
   const [loading, setLoading] = useState(false);
-  const [debugInfo, setDebugInfo] = useState([]);
-
-  // Note: getRedirectResult is handled in AuthContext to avoid calling it twice
-
-  // Load existing logs from localStorage on mount (console override is now in index.js)
-  useEffect(() => {
-    try {
-      const savedLogs = JSON.parse(localStorage.getItem('debug_logs') || '[]');
-      setDebugInfo(savedLogs);
-    } catch (e) {
-      console.error('Failed to load debug logs', e);
-    }
-  }, []);
-
-  // Refresh logs periodically to show new entries
-  useEffect(() => {
-    const interval = setInterval(() => {
-      try {
-        const savedLogs = JSON.parse(localStorage.getItem('debug_logs') || '[]');
-        setDebugInfo(savedLogs);
-      } catch (e) {
-        // Ignore
-      }
-    }, 500); // Refresh every 500ms
-
-    return () => clearInterval(interval);
-  }, []);
-
-  const shouldUseRedirect = () => {
-    // ALWAYS use popup - redirect doesn't work on Vercel (no /__/auth/handler endpoint)
-    // Popup works reliably on both mobile and desktop
-    return false;
-  };
-
-  const handleBypassAuth = () => {
-    // Create a fake user object for testing
-    const fakeUser = {
-      uid: 'test-user-bypass',
-      email: 'test@bypass.com',
-      displayName: 'Test User (Bypass)',
-      photoURL: null
-    };
-
-    // Manually set the user in AuthContext by triggering onAuthStateChanged
-    // Note: This is a hack for testing only - in production you'd never do this
-    console.log('[Login] BYPASS: Simulating authenticated user');
-    toast.info('Authentication bypassed for testing');
-
-    // Force a page reload to trigger the app with a "logged in" state
-    // We'll use sessionStorage to pass the bypass flag
-    sessionStorage.setItem('auth_bypass', 'true');
-    window.location.reload();
-  };
 
   const handleGoogleSignIn = async () => {
-    console.log('[Login] Starting Google sign in...');
     setLoading(true);
 
     try {
-      const useRedirect = shouldUseRedirect();
-      console.log('[Login] Using', useRedirect ? 'REDIRECT' : 'POPUP', 'flow');
-
-      if (useRedirect) {
-        // CRITICAL: Set persistence BEFORE redirect for mobile
-        console.log('[Login] Setting LOCAL persistence before redirect...');
-        console.log('[Login] Current URL:', window.location.href);
-        console.log('[Login] Auth domain being used:', auth.config.authDomain);
-
-        try {
-          await setPersistence(auth, browserLocalPersistence);
-          console.log('[Login] Persistence set, starting redirect...');
-
-          // Ensure we redirect back to the current domain
-          await signInWithRedirect(auth, googleProvider);
-          console.log('[Login] ⚠️ This log should NOT appear - redirect should have started');
-          // Execution stops here - page will redirect
-          return;
-        } catch (redirectError) {
-          console.error('[Login] REDIRECT FAILED:', redirectError);
-          console.error('[Login] Error code:', redirectError.code);
-          console.error('[Login] Error message:', redirectError.message);
-          toast.error(`Redirect failed: ${redirectError.message}`);
-          setLoading(false);
-          return;
-        }
-      } else {
-        // Desktop: use popup
-        const result = await signInWithPopup(auth, googleProvider);
-        console.log('[Login] Popup sign-in successful:', result.user?.email);
-        toast.success('Signing in...');
-      }
+      await signInWithPopup(auth, googleProvider);
+      // AuthContext will handle the rest
     } catch (error) {
-      console.error('[Login] Login error:', error);
+      console.error('Login error:', error);
 
-      // Fallback to redirect if popup blocked
-      if (error.code === 'auth/popup-blocked' || error.code === 'auth/popup-closed-by-user') {
-        console.log('[Login] Popup blocked, falling back to redirect');
-        try {
-          await setPersistence(auth, browserLocalPersistence);
-          await signInWithRedirect(auth, googleProvider);
-          return;
-        } catch (redirectError) {
-          console.error('[Login] Redirect fallback failed:', redirectError);
-          toast.error(`Failed to start Google sign-in (${redirectError.code || 'unknown error'}).`);
-        }
+      if (error.code === 'auth/popup-closed-by-user') {
+        toast.info('Sign-in cancelled');
+      } else if (error.code === 'auth/popup-blocked') {
+        toast.error('Popup was blocked. Please allow popups for this site.');
       } else {
-        const message = error.code === 'auth/unauthorized-domain'
-          ? 'This URL is not authorized for Google sign-in. Update the Authorized Domains in Firebase Authentication settings.'
-          : `Failed to start Google sign-in (${error.code || 'unknown error'}).`;
-        toast.error(message);
+        toast.error('Failed to sign in. Please try again.');
       }
       setLoading(false);
     }
@@ -152,60 +58,11 @@ const Login = () => {
               </>
             )}
           </button>
-
-          <button
-            className="google-signin-btn"
-            onClick={handleBypassAuth}
-            disabled={loading}
-            style={{
-              marginTop: '10px',
-              backgroundColor: '#ff6b6b',
-              border: '1px solid #ff5252'
-            }}
-          >
-            🔓 Bypass Auth (Testing Only)
-          </button>
         </div>
 
         <div className="login-footer">
           <p>Secure access for authorized users only</p>
-          <p style={{ fontSize: '10px', marginTop: '10px', color: '#666' }}>
-            v2.0.19 - Popup Mode | Build: {new Date().toISOString().split('T')[0]}
-          </p>
         </div>
-
-        {debugInfo.length > 0 && (
-          <div style={{
-            marginTop: '20px',
-            padding: '10px',
-            backgroundColor: '#f0f0f0',
-            border: '1px solid #ccc',
-            borderRadius: '4px',
-            fontSize: '10px',
-            fontFamily: 'monospace',
-            maxHeight: '200px',
-            overflow: 'auto',
-            color: '#333'
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
-              <strong>Debug Log (survives redirect):</strong>
-              <button
-                onClick={() => {
-                  localStorage.removeItem('debug_logs');
-                  setDebugInfo([]);
-                }}
-                style={{ fontSize: '10px', padding: '2px 5px' }}
-              >
-                Clear
-              </button>
-            </div>
-            {debugInfo.map((log, i) => (
-              <div key={i} style={{ borderBottom: '1px solid #ddd', padding: '2px 0' }}>
-                {log}
-              </div>
-            ))}
-          </div>
-        )}
       </div>
     </div>
   );

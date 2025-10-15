@@ -71,22 +71,6 @@ export const AuthProvider = ({ children }) => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       console.log('[AuthContext] Auth state changed:', firebaseUser ? firebaseUser.email : 'no user');
 
-      // Check for bypass flag (testing only)
-      const bypassAuth = sessionStorage.getItem('auth_bypass');
-      if (bypassAuth === 'true') {
-        console.log('[AuthContext] ⚠️ AUTH BYPASS ENABLED - TESTING ONLY ⚠️');
-        const fakeUser = {
-          uid: 'test-user-bypass',
-          email: 'test@bypass.com',
-          displayName: 'Test User (Bypass)',
-          photoURL: null,
-          emailVerified: true
-        };
-        setUser(fakeUser);
-        setLoading(false);
-        return;
-      }
-
       if (!firebaseUser) {
         console.log('[AuthContext] No user, setting state to null');
         setUser(null);
