@@ -11,9 +11,33 @@ import {
 } from "firebase/auth";
 
 // Your web app's Firebase configuration
+// IMPORTANT: For OAuth redirects to work, authDomain must match where the app is accessed from
+const currentDomain = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
+const currentOrigin = typeof window !== 'undefined' ? window.location.origin : '';
+
+// Determine which authDomain to use based on where we're running
+let authDomain;
+if (currentDomain === 'localhost' || currentDomain === '127.0.0.1') {
+  // Local development
+  authDomain = 'localhost';
+} else if (currentDomain.includes('vercel.app')) {
+  // Vercel deployment
+  authDomain = currentDomain;
+} else if (currentDomain.match(/^\d+\.\d+\.\d+\.\d+$/)) {
+  // IP address (local network testing)
+  authDomain = currentDomain;
+} else {
+  // Fallback to Firebase default
+  authDomain = process.env.REACT_APP_FIREBASE_AUTH_DOMAIN;
+}
+
+console.log('[Firebase] Current origin:', currentOrigin);
+console.log('[Firebase] Current domain:', currentDomain);
+console.log('[Firebase] Using authDomain:', authDomain);
+
 const firebaseConfig = {
   apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
-  authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
+  authDomain: authDomain,
   projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
   storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,

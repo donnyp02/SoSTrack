@@ -6,8 +6,33 @@ import './Login.css';
 
 const Login = () => {
   const [loading, setLoading] = useState(false);
+  const [debugInfo, setDebugInfo] = useState([]);
 
   // Note: getRedirectResult is handled in AuthContext to avoid calling it twice
+
+  // Capture logs for on-screen debugging
+  const addDebugLog = (message) => {
+    setDebugInfo(prev => [...prev.slice(-10), `${new Date().toLocaleTimeString()}: ${message}`]);
+  };
+
+  // Override console.log to capture Firebase logs on mobile
+  useState(() => {
+    const originalLog = console.log;
+    const originalError = console.error;
+
+    console.log = (...args) => {
+      originalLog(...args);
+      const msg = args.join(' ');
+      if (msg.includes('[Firebase]') || msg.includes('[AuthContext]') || msg.includes('[Login]')) {
+        addDebugLog(msg);
+      }
+    };
+
+    console.error = (...args) => {
+      originalError(...args);
+      addDebugLog('ERROR: ' + args.join(' '));
+    };
+  });
 
   const shouldUseRedirect = () => {
     if (typeof window === 'undefined') return true;
@@ -28,8 +53,11 @@ const Login = () => {
       if (useRedirect) {
         // CRITICAL: Set persistence BEFORE redirect for mobile
         console.log('[Login] Setting LOCAL persistence before redirect...');
+        console.log('[Login] Current URL:', window.location.href);
         await setPersistence(auth, browserLocalPersistence);
         console.log('[Login] Persistence set, starting redirect...');
+
+        // Ensure we redirect back to the current domain, not firebaseapp.com
         await signInWithRedirect(auth, googleProvider);
         // Execution stops here - page will redirect
         return;
@@ -99,6 +127,28 @@ const Login = () => {
         <div className="login-footer">
           <p>Secure access for authorized users only</p>
         </div>
+
+        {debugInfo.length > 0 && (
+          <div style={{
+            marginTop: '20px',
+            padding: '10px',
+            backgroundColor: '#f0f0f0',
+            border: '1px solid #ccc',
+            borderRadius: '4px',
+            fontSize: '10px',
+            fontFamily: 'monospace',
+            maxHeight: '200px',
+            overflow: 'auto',
+            color: '#333'
+          }}>
+            <strong>Debug Log (Mobile):</strong>
+            {debugInfo.map((log, i) => (
+              <div key={i} style={{ borderBottom: '1px solid #ddd', padding: '2px 0' }}>
+                {log}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
