@@ -10,13 +10,28 @@ const Login = () => {
 
   // Note: getRedirectResult is handled in AuthContext to avoid calling it twice
 
-  // Capture logs for on-screen debugging
+  // Capture logs for on-screen debugging - use localStorage to persist across redirects
   const addDebugLog = (message) => {
-    setDebugInfo(prev => [...prev.slice(-10), `${new Date().toLocaleTimeString()}: ${message}`]);
+    try {
+      const logs = JSON.parse(localStorage.getItem('debug_logs') || '[]');
+      const newLogs = [...logs.slice(-15), `${new Date().toLocaleTimeString()}: ${message}`];
+      localStorage.setItem('debug_logs', JSON.stringify(newLogs));
+      setDebugInfo(newLogs);
+    } catch (e) {
+      console.error('Failed to save debug log', e);
+    }
   };
 
-  // Override console.log to capture Firebase logs on mobile
+  // Load existing logs from localStorage on mount
   useState(() => {
+    try {
+      const savedLogs = JSON.parse(localStorage.getItem('debug_logs') || '[]');
+      setDebugInfo(savedLogs);
+    } catch (e) {
+      console.error('Failed to load debug logs', e);
+    }
+
+    // Override console.log to capture Firebase logs on mobile
     const originalLog = console.log;
     const originalError = console.error;
 
@@ -141,7 +156,18 @@ const Login = () => {
             overflow: 'auto',
             color: '#333'
           }}>
-            <strong>Debug Log (Mobile):</strong>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
+              <strong>Debug Log (survives redirect):</strong>
+              <button
+                onClick={() => {
+                  localStorage.removeItem('debug_logs');
+                  setDebugInfo([]);
+                }}
+                style={{ fontSize: '10px', padding: '2px 5px' }}
+              >
+                Clear
+              </button>
+            </div>
             {debugInfo.map((log, i) => (
               <div key={i} style={{ borderBottom: '1px solid #ddd', padding: '2px 0' }}>
                 {log}
