@@ -26,7 +26,11 @@ import { FaCog } from 'react-icons/fa';
 import { combineFlavorName, stripContainerSuffix, normalizeString } from './utils/containerUtils';
 
 function App() {
+  console.log('🔵🔵🔵 [App.js] APP COMPONENT RENDERING 🔵🔵🔵');
+  console.log('[App.js] Timestamp:', new Date().toISOString());
+
   const { user, loading: authLoading } = useAuth();
+  console.log('[App.js] Auth state - user:', user ? user.email : 'null', 'loading:', authLoading);
   const [products, setProducts] = useState({});
   const [categories, setCategories] = useState({});
   const [batches, setBatches] = useState({});

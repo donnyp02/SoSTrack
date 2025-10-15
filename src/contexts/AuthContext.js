@@ -14,6 +14,16 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // Failsafe: If loading takes more than 10 seconds, force it to finish
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      console.error('[AuthContext] ⚠️ FAILSAFE: Loading timeout after 10s, forcing loading=false');
+      setLoading(false);
+    }, 10000);
+
+    return () => clearTimeout(timeout);
+  }, []);
+
   useEffect(() => {
     console.log('[AuthContext] AuthProvider mounted/re-mounted');
     console.log('[AuthContext] redirectCheckInProgress:', redirectCheckInProgress);
