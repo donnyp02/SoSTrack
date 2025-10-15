@@ -769,10 +769,6 @@ function App() {
           Packaging
           {tabCounts.Package > 0 && <span className="tab-badge package">{tabCounts.Package}</span>}
         </button>
-        <button className={`tab-button ${activeTab === 'Shipping' ? 'active' : ''}`} onClick={() => setActiveTab('Shipping')}>
-          Shipping
-          {tabCounts.Ready > 0 && <span className="tab-badge ready">{tabCounts.Ready}</span>}
-        </button>
         <button className={`tab-button ${activeTab === 'Inventory' ? 'active' : ''}`} onClick={() => setActiveTab('Inventory')}>Inventory</button>
         <button className={`tab-button ${activeTab === 'LotTracking' ? 'active' : ''}`} onClick={() => setActiveTab('LotTracking')}>
           Lot Tracking
