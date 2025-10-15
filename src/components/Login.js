@@ -35,11 +35,10 @@ const Login = () => {
   }, []);
 
   const shouldUseRedirect = () => {
-    if (typeof window === 'undefined') return true;
-    const ua = navigator.userAgent;
-    const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(ua);
-    const isStandalone = window.matchMedia && window.matchMedia('(display-mode: standalone)').matches;
-    return isMobile || isStandalone;
+    // DISABLED: Redirect mode doesn't work on mobile with Vercel
+    // Firebase loses auth state when authDomain (.firebaseapp.com) != actual domain (.vercel.app)
+    // Always use popup mode instead
+    return false;
   };
 
   const handleBypassAuth = () => {

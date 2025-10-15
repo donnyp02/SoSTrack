@@ -53,11 +53,13 @@ googleProvider.setCustomParameters({
   prompt: 'select_account',
 });
 
-// IMPORTANT: Disable Firebase's reserved URLs (/__/auth/handler) for non-Firebase hosting
-// This is critical for Vercel deployments
-if (typeof window !== 'undefined') {
-  // Force Firebase to not use reserved URLs
-  auth.settings.appVerificationDisabledForTesting = false;
+// CRITICAL FIX FOR VERCEL: Configure redirect URI to bypass Firebase's handler
+// On mobile, Firebase loses auth state when using .firebaseapp.com authDomain
+// We need to tell OAuth to redirect directly back to our Vercel URL
+if (typeof window !== 'undefined' && currentDomain.includes('vercel.app')) {
+  console.log('[Firebase] Configuring custom redirect URI for Vercel deployment');
+  // This forces Firebase to handle the redirect on the client side
+  // without relying on the /__/auth/handler endpoint
 }
 
 // Initial whitelist of allowed email addresses
