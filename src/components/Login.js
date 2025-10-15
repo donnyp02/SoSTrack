@@ -18,6 +18,7 @@ const Login = () => {
   useEffect(() => {
     const loadWhitelist = async () => {
       try {
+        console.log('[Login] Loading whitelist...');
         const whitelistDoc = await getDoc(doc(db, 'settings', 'whitelist'));
         if (whitelistDoc.exists()) {
           const fetched = whitelistDoc.data().emails || INITIAL_ALLOWED_EMAILS;
@@ -25,6 +26,7 @@ const Login = () => {
             .map((email) => (email ? email.trim().toLowerCase() : null))
             .filter(Boolean);
           setAllowedEmails(normalized);
+          console.log('[Login] Whitelist loaded:', normalized.length, 'emails');
         } else {
           // Initialize whitelist in Firestore if it doesn't exist
           const normalizedInitial = INITIAL_ALLOWED_EMAILS.map((email) =>
@@ -35,9 +37,10 @@ const Login = () => {
             updatedAt: new Date()
           });
           setAllowedEmails(normalizedInitial);
+          console.log('[Login] Whitelist initialized with', normalizedInitial.length, 'emails');
         }
       } catch (error) {
-        console.error('Error loading whitelist:', error);
+        console.error('[Login] Error loading whitelist:', error);
         setAllowedEmails(
           INITIAL_ALLOWED_EMAILS.map((email) => email.trim().toLowerCase())
         );
@@ -49,43 +52,68 @@ const Login = () => {
   }, []);
 
   const handleAuthResult = useCallback(async (result) => {
+    console.log('[Login] handleAuthResult called', result ? 'with result' : 'no result');
     if (!result) return;
     const user = result.user;
-    if (!user) return;
+    if (!user) {
+      console.log('[Login] No user in result');
+      return;
+    }
+
     processedUserRef.current = user.uid;
     const email = user.email?.trim().toLowerCase();
+    console.log('[Login] Processing auth for email:', email);
+
     if (!email) {
+      console.error('[Login] No email found on user');
       toast.error('Failed to retrieve email from Google. Please try again.');
+      await auth.signOut();
       setLoading(false);
       return;
     }
+
+    console.log('[Login] Checking whitelist. Allowed emails:', allowedEmails);
     if (!allowedEmails.includes(email)) {
+      console.warn('[Login] Email not in whitelist:', email);
       await auth.signOut();
       toast.error(`Access denied. ${email} is not authorized to access this application.`);
       setLoading(false);
       return;
     }
+
+    console.log('[Login] Auth successful for:', email);
     toast.success('Welcome to SoSTrack!');
     setLoading(false);
   }, [allowedEmails]);
 
+  // Handle redirect result on component mount
   useEffect(() => {
-    if (!whitelistLoaded) return;
+    if (!whitelistLoaded) {
+      console.log('[Login] Waiting for whitelist to load before processing redirect...');
+      return;
+    }
+
     let isMounted = true;
     const resolveRedirect = async () => {
       try {
+        console.log('[Login] Checking for redirect result...');
         setLoading(true);
         const result = await getRedirectResult(auth);
-        if (!isMounted) return;
+
+        if (!isMounted) {
+          console.log('[Login] Component unmounted, skipping redirect processing');
+          return;
+        }
+
         if (result) {
-          // User just completed OAuth redirect flow
+          console.log('[Login] Redirect result found, processing...');
           await handleAuthResult(result);
         } else {
-          // No redirect result, but check if user is already logged in
+          console.log('[Login] No redirect result found');
           setLoading(false);
         }
       } catch (error) {
-        console.error('Redirect sign-in error:', error);
+        console.error('[Login] Redirect sign-in error:', error);
         if (isMounted) {
           const message = error.code === 'auth/unauthorized-domain'
             ? 'This URL is not authorized in your Firebase project. Add it to the allowed domains list or use an approved hostname.'
@@ -95,7 +123,9 @@ const Login = () => {
         }
       }
     };
+
     resolveRedirect();
+
     return () => {
       isMounted = false;
     };
@@ -106,27 +136,39 @@ const Login = () => {
     const ua = navigator.userAgent;
     const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(ua);
     const isStandalone = window.matchMedia && window.matchMedia('(display-mode: standalone)').matches;
+    console.log('[Login] shouldUseRedirect:', { isMobile, isStandalone, result: isMobile || isStandalone });
     return isMobile || isStandalone;
   };
 
   const handleGoogleSignIn = async () => {
-    if (!whitelistLoaded) return;
+    if (!whitelistLoaded) {
+      console.warn('[Login] Sign in attempted before whitelist loaded');
+      return;
+    }
+
+    console.log('[Login] Starting Google sign in...');
     setLoading(true);
+
     try {
       if (shouldUseRedirect()) {
+        console.log('[Login] Using redirect flow for mobile/standalone');
         await signInWithRedirect(auth, googleProvider);
+        // Note: execution stops here on redirect
         return;
       }
+
+      console.log('[Login] Using popup flow for desktop');
       const result = await signInWithPopup(auth, googleProvider);
       await handleAuthResult(result);
     } catch (error) {
-      console.error('Login error:', error);
+      console.error('[Login] Login error:', error);
       if (error.code === 'auth/popup-blocked' || error.code === 'auth/popup-closed-by-user') {
+        console.log('[Login] Popup blocked, falling back to redirect');
         try {
           await signInWithRedirect(auth, googleProvider);
           return;
         } catch (redirectError) {
-          console.error('Redirect fallback failed:', redirectError);
+          console.error('[Login] Redirect fallback failed:', redirectError);
           const message = redirectError.code === 'auth/unauthorized-domain'
             ? 'This URL is not authorized for Google sign-in. Update the Authorized Domains in Firebase Authentication settings.'
             : `Failed to start Google sign-in (${redirectError.code || 'unknown error'}).`;
