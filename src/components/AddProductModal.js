@@ -1,9 +1,12 @@
 // src/components/AddProductModal.js
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import './AddProductModal.css';
 import { db } from '../firebase';
 import { doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import CategoryContainersModal from './CategoryContainersModal';
+import { combineFlavorName, stripContainerSuffix, normalizeString } from '../utils/containerUtils';
+
+const toArray = (value) => (Array.isArray(value) ? value : []);
 
 const AddProductModal = ({
   categories,
@@ -22,22 +25,57 @@ const AddProductModal = ({
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [isContainersModalOpen, setIsContainersModalOpen] = useState(false);
   const [skuTouched, setSkuTouched] = useState(false);
+  const [selectedContainers, setSelectedContainers] = useState([]);
+  const containerInitializedRef = useRef(false);
 
   const isEditMode = !!productToEdit;
+  const containerTemplates = useMemo(() => {
+    const templates = selectedCategory?.containerTemplates;
+    return Array.isArray(templates) ? templates : [];
+  }, [selectedCategory]);
+
+  const selectedContainerId = selectedContainers[0] || '';
+  const selectedContainer = useMemo(
+    () => containerTemplates.find((template) => template?.id === selectedContainerId) || null,
+    [containerTemplates, selectedContainerId]
+  );
+
+  const combinedFlavor = useMemo(
+    () => combineFlavorName(flavor, selectedContainer?.name),
+    [flavor, selectedContainer]
+  );
+
+  const containerSku = useMemo(
+    () => normalizeString(selectedContainer?.sku),
+    [selectedContainer]
+  );
+
+  const previewSku = useMemo(() => {
+    const parts = [];
+    const categoryPart = normalizeString(categorySku);
+    const flavorPart = normalizeString(flavorSku);
+    if (categoryPart) parts.push(categoryPart);
+    if (flavorPart) parts.push(flavorPart);
+    if (containerSku) parts.push(containerSku);
+    return parts.join('-');
+  }, [categorySku, flavorSku, containerSku]);
 
   useEffect(() => {
+    containerInitializedRef.current = false;
     if (isEditMode) {
-      setFlavor(productToEdit.flavor);
-      setFlavorSku(productToEdit.flavorSku || '');
+      setFlavor(productToEdit?.flavor || '');
+      setFlavorSku(productToEdit?.flavorSku || '');
       setCategoryInput(categoryToEdit?.name || '');
       setCategorySku(categoryToEdit?.sku || '');
       setSelectedCategory(categoryToEdit || null);
+      setSelectedContainers(toArray(productToEdit?.selectedContainers));
     } else {
       setCategoryInput('');
       setCategorySku('');
       setFlavor('');
       setFlavorSku('');
       setSelectedCategory(null);
+      setSelectedContainers([]);
     }
   }, [isEditMode, productToEdit, categoryToEdit]);
 
@@ -69,28 +107,151 @@ const AddProductModal = ({
     if (found) setCategorySku((found.sku || '').toUpperCase());
   }, [categoryInput, categories]);
 
+  useEffect(() => {
+    if (!selectedCategory) {
+      if (selectedContainers.length) setSelectedContainers([]);
+      return;
+    }
+
+    if (!containerTemplates.length) {
+      if (selectedContainers.length) setSelectedContainers([]);
+      return;
+    }
+
+    const currentId = selectedContainers[0];
+    if (currentId && !containerTemplates.some((template) => template?.id === currentId)) {
+      setSelectedContainers([]);
+    }
+  }, [selectedCategory, containerTemplates, selectedContainers]);
+
+  useEffect(() => {
+    if (!isEditMode) {
+      containerInitializedRef.current = false;
+      return;
+    }
+
+    if (containerInitializedRef.current) return;
+    if (!selectedCategory) return;
+    if (!productToEdit) return;
+
+    if (selectedContainers.length > 0) {
+      containerInitializedRef.current = true;
+      return;
+    }
+
+    if (!containerTemplates.length) {
+      containerInitializedRef.current = true;
+      return;
+    }
+
+    const existingFlavor = normalizeString(productToEdit.flavor);
+    if (!existingFlavor) {
+      containerInitializedRef.current = true;
+      return;
+    }
+
+    const match = containerTemplates.find((template) => {
+      const templateName = normalizeString(template?.name);
+      if (!templateName) return false;
+      const flavorLower = existingFlavor.toLowerCase();
+      const templateLower = templateName.toLowerCase();
+      return (
+        flavorLower === templateLower ||
+        flavorLower.endsWith(` ${templateLower}`) ||
+        flavorLower.endsWith(templateLower)
+      );
+    });
+
+    if (match) {
+      setSelectedContainers([match.id]);
+      const stripped = normalizeString(
+        stripContainerSuffix(existingFlavor, containerTemplates, match.id)
+      );
+      if (stripped !== flavor) {
+        setFlavor(stripped);
+      }
+    } else {
+      const stripped = normalizeString(stripContainerSuffix(existingFlavor, containerTemplates));
+      if (stripped && stripped !== flavor) {
+        setFlavor(stripped);
+      }
+    }
+
+    containerInitializedRef.current = true;
+  }, [
+    isEditMode,
+    selectedCategory,
+    productToEdit,
+    containerTemplates,
+    selectedContainers.length,
+    flavor,
+  ]);
+
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!categoryInput || !flavor) {
+    const finalCategory = normalizeString(categoryInput);
+    const finalFlavor = normalizeString(combinedFlavor);
+
+    if (!finalCategory || !finalFlavor) {
       alert('Please fill out both category and flavor.');
       return;
     }
+
     onSubmit({
-      category: categoryInput.trim(),
-      flavor: flavor.trim(),
-      categorySku: categorySku.trim(),
-      flavorSku: flavorSku.trim(),
+      category: finalCategory,
+      flavor: finalFlavor,
+      categorySku: normalizeString(categorySku),
+      flavorSku: normalizeString(flavorSku),
+      selectedContainers,
+      containerName: normalizeString(selectedContainer?.name),
+      containerSku,
     });
   };
 
-  const handleSaveContainers = async (newPackageOptions) => {
+  const handleSaveContainers = async (payload) => {
     if (!selectedCategory) {
       alert('Please create the main product first before managing containers for a new category.');
       return;
     }
+
+    const newPackageOptions = Array.isArray(payload)
+      ? payload
+      : payload?.templates || [];
+    const nextSelectedId = Array.isArray(payload)
+      ? null
+      : payload?.selectedTemplateId || null;
+    const currentCombinedFlavor = combineFlavorName(flavor, selectedContainer?.name);
+
     const categoryDocRef = doc(db, 'categories', selectedCategory.id);
     try {
       await updateDoc(categoryDocRef, { containerTemplates: newPackageOptions });
+      setSelectedCategory((prev) =>
+        prev ? { ...prev, containerTemplates: newPackageOptions } : prev
+      );
+
+      const candidateId = nextSelectedId || selectedContainerId || null;
+      const hasCandidate =
+        candidateId && newPackageOptions.some((opt) => opt.id === candidateId);
+
+      if (hasCandidate) {
+        setSelectedContainers([candidateId]);
+      } else if (newPackageOptions.length > 0) {
+        setSelectedContainers([newPackageOptions[0].id]);
+      } else {
+        setSelectedContainers([]);
+      }
+
+      const recalculatedBase = normalizeString(
+        stripContainerSuffix(
+          currentCombinedFlavor,
+          newPackageOptions,
+          hasCandidate ? candidateId : null
+        )
+      );
+      if (recalculatedBase !== flavor) {
+        setFlavor(recalculatedBase);
+      }
+
       setIsContainersModalOpen(false);
       onDataRefresh && onDataRefresh();
     } catch (error) {
@@ -184,15 +345,6 @@ const AddProductModal = ({
                 </datalist>
               </div>
 
-              <button
-                type="button"
-                className="manage-btn"
-                disabled={!selectedCategory}
-                onClick={() => setIsContainersModalOpen(true)}
-              >
-                Manage Containers
-              </button>
-
               <div className="form-group category-sku-group">
                 <label htmlFor="category-sku">Category SKU</label>
                 <input
@@ -203,6 +355,60 @@ const AddProductModal = ({
                   placeholder="e.g., SK"
                 />
               </div>
+            </div>
+
+            {/* Container row - condensed inline layout */}
+            <div className="container-row">
+              <div className="form-group">
+                <label htmlFor="container-select">Container</label>
+                <select
+                  id="container-select"
+                  className="container-select"
+                  value={selectedContainerId}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (value === selectedContainerId) return;
+
+                    const stripped = stripContainerSuffix(
+                      combineFlavorName(flavor, selectedContainer?.name),
+                      containerTemplates,
+                      selectedContainerId
+                    );
+                    if (stripped !== flavor) {
+                      setFlavor(stripped);
+                    }
+
+                    if (value) {
+                      setSelectedContainers([value]);
+                    } else {
+                      setSelectedContainers([]);
+                    }
+                  }}
+                  disabled={!selectedCategory || containerTemplates.length === 0}
+                >
+                  <option value="">
+                    {selectedCategory
+                      ? containerTemplates.length
+                        ? 'Select a container...'
+                        : 'No containers defined'
+                      : 'Select a category first'}
+                  </option>
+                  {containerTemplates.map((template) => (
+                    <option key={template.id} value={template.id}>
+                      {template.name} ({template.weightOz} oz)
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <button
+                type="button"
+                className="manage-btn"
+                disabled={!selectedCategory}
+                onClick={() => setIsContainersModalOpen(true)}
+              >
+                Manage Containers
+              </button>
             </div>
 
             {/* TIGHT STACK: Flavor + Flavor SKU are controlled together */}
@@ -244,17 +450,14 @@ const AddProductModal = ({
           {(() => {
             const mainParts = [];
             if (categoryInput) mainParts.push(categoryInput.trim());
-            if (flavor) mainParts.push(flavor.trim());
+            if (combinedFlavor) mainParts.push(combinedFlavor);
             const mainText = mainParts.join(' ').replace(/\s+/g, ' ').trim();
-            const sku = (categorySku || flavorSku)
-              ? `${categorySku ? `${categorySku}-` : ''}${flavorSku || ''}`
-              : '';
             return (
               <div className="product-preview">
                 <div className="preview-value">
-                  <span className="preview-main">{mainText || '—'}</span>
-                  {sku && (
-                    <span className="preview-sku"> {sku}</span>
+                  <span className="preview-main">{mainText || '-'}</span>
+                  {previewSku && (
+                    <span className="preview-sku"> {previewSku}</span>
                   )}
                 </div>
               </div>
@@ -272,6 +475,7 @@ const AddProductModal = ({
       {isContainersModalOpen && selectedCategory && (
         <CategoryContainersModal
           category={selectedCategory}
+          selectedTemplateId={selectedContainerId || null}
           onClose={() => setIsContainersModalOpen(false)}
           onSave={handleSaveContainers}
         />
@@ -281,8 +485,4 @@ const AddProductModal = ({
 };
 
 export default AddProductModal;
-
-
-
-
 

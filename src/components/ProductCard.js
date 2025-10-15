@@ -55,10 +55,13 @@ const ProductCard = memo(({ product, category, onClick }) => {
   }, [product]);
 
   const formatInventory = () => {
-    const totalOunces = product.onHandOz || 0;
-    const lbs = Math.floor(totalOunces / 16);
-    const oz = totalOunces % 16;
-    return `${lbs} lbs ${oz} oz`;
+    const resolvedUnits = Number.isFinite(product.onHandUnits)
+      ? product.onHandUnits
+      : (Array.isArray(product.packageOptions)
+          ? product.packageOptions.reduce((sum, opt) => sum + (opt.quantity || 0), 0)
+          : 0);
+    const units = resolvedUnits < 0 ? 0 : resolvedUnits;
+    return `${units}`;
   };
 
   return (

@@ -18,7 +18,7 @@
 }
 
 .modal-content.inventory-modal .close-button {
-  color: #94a3b8;
+  color: #6c757d;
 }
 
 .inventory-modal-actions {
@@ -66,4 +66,12 @@
     min-height: 52px;
     font-size: 1.2em;
   }
+}
+
+body.dark-mode .modal-content.inventory-modal .close-button {
+  color: #cbd5f5;
+}
+
+body.dark-mode .modal-content.inventory-modal .close-button:hover {
+  color: #e2e8f0;
 }

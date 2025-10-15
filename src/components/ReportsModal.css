@@ -1,0 +1,58 @@
+/* src/components/ReportsModal.css */
+.reports-modal .modal-content {
+  max-width: 460px;
+  width: 100%;
+}
+
+.reports-modal .modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.reports-modal .export-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.reports-modal .export-actions button {
+  padding: 10px 16px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 600;
+  transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+.reports-modal .export-actions button.primary {
+  background-color: #0d6efd;
+  color: #fff;
+}
+
+.reports-modal .export-actions button.secondary {
+  background-color: #6c757d;
+  color: #fff;
+}
+
+.reports-modal .export-actions button:hover {
+  transform: translateY(-1px);
+}
+
+.reports-modal .modal-footer {
+  justify-content: flex-end;
+}
+
+body.dark-mode .reports-modal .export-actions button.primary {
+  background-color: #3b82f6;
+}
+
+body.dark-mode .reports-modal .export-actions button.secondary {
+  background-color: #475569;
+  color: #f8fafc;
+}
+
+body.dark-mode .reports-modal .export-actions button:hover {
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.35);
+}

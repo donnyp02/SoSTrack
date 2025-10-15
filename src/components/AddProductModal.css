@@ -33,6 +33,25 @@
   --space-8: 18px;
 }
 
+body.dark-mode {
+  --bg: #1a1f29;
+  --bg-muted: #1f2533;
+  --text: #f8fafc;
+  --text-muted: #cbd5f5;
+  --border: #2f3645;
+  --input: #111827;
+  --input-border: #334155;
+  --input-border-hover: #3f4d63;
+  --ring: #60a5fa;
+  --ring-weak: rgba(96, 165, 250, 0.25);
+  --primary: #3b82f6;
+  --primary-hover: #2563eb;
+  --primary-active: #1d4ed8;
+  --secondary: #475569;
+  --secondary-hover: #64748b;
+  --secondary-disabled: #1f2937;
+}
+
 /* Modal chrome */
 .modal-content { background: var(--bg); border-radius: var(--radius-lg); box-shadow: var(--shadow-md); }
 .modal-header { padding-bottom: var(--space-6); margin-bottom: var(--space-6); border-bottom: 1px solid var(--border); }
@@ -104,9 +123,36 @@
 /* SKU layout */
 .modal-content .category-group {
   display: grid;
-  grid-template-columns: 1fr auto; /* [Category] [Manage] */
+  grid-template-columns: 1fr auto; /* [Category/Container] [Manage] */
   gap: var(--space-5);
   align-items: end;
+}
+
+/* Container row styling */
+.modal-content .container-row {
+  display: grid;
+  grid-template-columns: auto minmax(180px, 1fr) auto;
+  gap: var(--space-4);
+  align-items: end;
+  margin-top: var(--space-5);
+}
+
+.modal-content .container-row .form-group {
+  margin-bottom: 0;
+}
+
+.modal-content .container-select {
+  width: 100%;
+  min-width: 180px;
+  max-width: 280px;
+  padding: var(--space-4) var(--space-5);
+  font-size: 0.95rem;
+}
+
+.modal-content .container-select:disabled {
+  background: var(--bg-muted);
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 /* Category SKU row (inline label + input, indented) */
@@ -180,6 +226,74 @@
   color: var(--text-muted);
 }
 
+/* Container selection checkboxes */
+.container-selection {
+  margin-top: 16px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  background: var(--bg-muted);
+  border-radius: var(--radius-sm);
+}
+
+.container-selection label {
+  font-weight: 700;
+  margin-bottom: 10px;
+  color: var(--text);
+}
+
+.container-checkboxes {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background .15s ease, border-color .15s ease;
+}
+
+.checkbox-label:hover {
+  background: var(--bg-muted);
+  border-color: var(--input-border-hover);
+}
+
+.checkbox-label input[type="checkbox"] {
+  width: auto;
+  margin: 0;
+  cursor: pointer;
+}
+
+.checkbox-label span {
+  font-size: 0.95rem;
+  color: var(--text);
+  font-weight: 500;
+}
+
+@media (max-width: 640px) {
+  .modal-content .container-row {
+    grid-template-columns: 1fr;
+    row-gap: var(--space-3);
+    align-items: stretch;
+  }
+
+  .modal-content .container-row .manage-btn {
+    justify-self: flex-start;
+    width: auto;
+  }
+
+  .modal-content .container-select {
+    max-width: none;
+  }
+}
+
 /* Tablet optimizations */
 @media (min-width: 768px) and (max-width: 1024px) {
   .modal-content {
@@ -239,3 +353,5 @@
     font-size: 1.05rem;
   }
 }
+
+

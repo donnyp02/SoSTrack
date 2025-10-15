@@ -12,7 +12,8 @@
       "Bash(else echo \"No .env file found\")",
       "Bash(fi)",
       "Bash(curl:*)",
-      "Bash(pkill:*)"
+      "Bash(pkill:*)",
+      "Bash(git checkout:*)"
     ],
     "deny": [],
     "ask": []

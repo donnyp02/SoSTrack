@@ -32,6 +32,10 @@ const ManagementModal = ({ product, category, onUpdate, onDeleteBatches, onClose
     activeBatches.reduce((total, batch) => total + (batch.request?.calculatedWeightLbs || 0), 0),
     [activeBatches]
   );
+  const onHandUnits = useMemo(
+    () => (product?.packageOptions || []).reduce((total, opt) => total + (opt.quantity || 0), 0),
+    [product?.packageOptions]
+  );
 
   const canPackage = useMemo(() => Array.from(selectedBatches).every(id => activeBatches.find(b => b.id === id)?.status === 'Make'), [selectedBatches, activeBatches]);
   
@@ -56,8 +60,8 @@ const ManagementModal = ({ product, category, onUpdate, onDeleteBatches, onClose
 
   if (!product) return null;
 
-  const onHandLbs = Math.floor((product.onHandOz || 0) / 16);
-  const onHandOzRemainder = (product.onHandOz || 0) % 16;
+  const resolvedUnits = onHandUnits < 0 ? 0 : onHandUnits;
+  const onHandLabel = `${resolvedUnits}`;
 
   const handlePackage = () => {
     selectedBatches.forEach(batchId => {
@@ -91,7 +95,7 @@ const ManagementModal = ({ product, category, onUpdate, onDeleteBatches, onClose
 
     const displayWeight = useMemo(() => {
         if (batch.status === 'Ready' || batch.status === 'Completed') {
-          if (!batch.finalCount?.countedPackages || !category?.packageOptions) return "N/A";
+          if (!batch.finalCount?.countedPackages) return "N/A";
           let totalOunces = 0;
           batch.finalCount.countedPackages.forEach(p => {
             const template = category?.containerTemplates?.find(t => t.id === p.packageId);
@@ -139,16 +143,10 @@ const ManagementModal = ({ product, category, onUpdate, onDeleteBatches, onClose
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal-content wide" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
-          <div className="modal-header-content">
-            <h2>
-              Manage: {category?.name} {product.flavor}
-            </h2>
-            <div className="header-sku-display">
-              <span className="sku-label">SKU:</span>
-              <span className="sku-display">{category?.sku}-{product.flavorSku}</span>
-              <button className="icon-btn" onClick={() => onOpenModal('editProduct')}><FiEdit /></button> 
-            </div>
-          </div>
+          <h2>
+            Manage: {category?.name} {product.flavor}
+            <button className="icon-btn" onClick={() => onOpenModal('editProduct')} style={{marginLeft: '12px'}}><FiEdit /></button>
+          </h2>
           <button onClick={onClose} className="close-button">&times;</button>
         </div>
         <div className="modal-body">
@@ -161,7 +159,7 @@ const ManagementModal = ({ product, category, onUpdate, onDeleteBatches, onClose
             <div className="info-section left">
               <h4>Inventory</h4>
               <div className="inventory-stats">
-                <div className="stat-item"><span>{`${onHandLbs} lbs ${onHandOzRemainder} oz`}</span><small>On Hand</small></div>
+                <div className="stat-item"><span>{onHandLabel}</span><small>On Hand</small></div>
                 <div className="stat-item"><span>{`${inProductionLbs.toFixed(2)} lbs`}</span><small>In Production</small></div>
               </div>
               <h4>Containers <button className="icon-btn" onClick={() => onOpenModal('containers')}><FaCog /></button></h4>

@@ -336,8 +336,24 @@ const Inventory = ({ onImport, products, categories, onAddProduct, onInventorySa
                       const inv = (p.containerInventory || []).find(i => i.templateId === template.id);
                       return { ...template, quantity: inv?.quantity || 0 };
                     });
-                    const onHandOz = packageOptions.reduce((t, opt) => t + ((opt.weightOz || 0) * (opt.quantity || 0)), 0);
-                    const productForCard = { ...p, onHandOz, batches: [], status: 'Idle' };
+                    const { totalOunces, totalUnits } = packageOptions.reduce(
+                      (totals, opt) => {
+                        const qty = opt.quantity || 0;
+                        const weight = opt.weightOz || 0;
+                        totals.totalOunces += weight * qty;
+                        totals.totalUnits += qty;
+                        return totals;
+                      },
+                      { totalOunces: 0, totalUnits: 0 }
+                    );
+                    const productForCard = {
+                      ...p,
+                      onHandOz: totalOunces,
+                      onHandUnits: totalUnits,
+                      batches: [],
+                      status: 'Idle',
+                      packageOptions
+                    };
                     return (
                       <ProductCard
                         key={p.id}

@@ -108,3 +108,45 @@
       min-height: 60px;
     }
   }
+body.dark-mode .comparison-table th {
+  background-color: #1f2937;
+  color: #f8fafc;
+  border-bottom-color: #334155;
+}
+
+body.dark-mode .comparison-table td {
+  border-bottom-color: #334155;
+  color: #e2e8f0;
+}
+
+body.dark-mode .comparison-table td:first-child {
+  color: #f8fafc;
+}
+
+body.dark-mode .comparison-table .diff {
+  color: #f87171;
+}
+
+body.dark-mode .summary-box {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
+}
+
+body.dark-mode .summary-box.under-count {
+  color: #1f2937;
+}
+
+body.dark-mode .btn-change {
+  background-color: #ef4444;
+}
+
+body.dark-mode .btn-change:hover {
+  background-color: #dc2626;
+}
+
+body.dark-mode .btn-verify {
+  background-color: #22c55e;
+}
+
+body.dark-mode .btn-verify:hover {
+  background-color: #16a34a;
+}

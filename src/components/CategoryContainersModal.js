@@ -1,16 +1,47 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import './CategoryContainersModal.css';
 
 // It now correctly expects a 'category' prop
-const CategoryContainersModal = ({ category, onSave, onClose }) => {
-  const templates = category?.containerTemplates || [];
+const CategoryContainersModal = ({
+  category,
+  onSave,
+  onClose,
+  selectedTemplateId = null
+}) => {
+  const templates = Array.isArray(category?.containerTemplates)
+    ? category.containerTemplates
+    : [];
   const [packageOptions, setPackageOptions] = useState(templates);
   const [newName, setNewName] = useState('');
   const [newWeight, setNewWeight] = useState('');
   const [newSku, setNewSku] = useState('');
   const [editingOptionId, setEditingOptionId] = useState(null);
+  const [activeOptionId, setActiveOptionId] = useState(
+    selectedTemplateId || null
+  );
+
+  useEffect(() => {
+    setPackageOptions(templates);
+  }, [templates]);
+
+  useEffect(() => {
+    setActiveOptionId((prev) => {
+      if (selectedTemplateId && templates.some((opt) => opt.id === selectedTemplateId)) {
+        return selectedTemplateId;
+      }
+      if (prev && templates.some((opt) => opt.id === prev)) {
+        return prev;
+      }
+      return templates[0]?.id || null;
+    });
+  }, [selectedTemplateId, templates]);
+
+  const handleSelect = (option) => {
+    setActiveOptionId(option.id);
+  };
 
   const handleEditClick = (option) => {
+    handleSelect(option);
     setEditingOptionId(option.id);
     setNewName(option.name);
     setNewWeight(option.weightOz);
@@ -29,6 +60,7 @@ const CategoryContainersModal = ({ category, onSave, onClose }) => {
           : opt
       );
       setPackageOptions(updatedOptions);
+      setActiveOptionId(editingOptionId);
     } else {
       const newOption = {
         id: `pkg_${newName.toLowerCase().replace(/\s+/g, '_')}`,
@@ -37,6 +69,7 @@ const CategoryContainersModal = ({ category, onSave, onClose }) => {
         sku: newSku
       };
       setPackageOptions([...packageOptions, newOption]);
+      setActiveOptionId(newOption.id);
     }
     cancelEdit();
   };
@@ -49,14 +82,17 @@ const CategoryContainersModal = ({ category, onSave, onClose }) => {
   };
 
   const handleSave = () => {
-    onSave(packageOptions);
+    onSave({
+      templates: packageOptions,
+      selectedTemplateId: activeOptionId
+    });
   };
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal-content small-modal" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
-          <h3>Manage Templates for "{category?.name || 'Unnamed Category'}"</h3>
+          <h3>Manage Containers for "{category?.name || 'Unnamed Category'}"</h3>
           <button onClick={onClose} className="close-button">&times;</button>
         </div>
         <div className="modal-body">
@@ -65,7 +101,19 @@ const CategoryContainersModal = ({ category, onSave, onClose }) => {
               <p className="no-options">No container templates defined yet.</p>
             ) : (
               packageOptions.map(opt => (
-                <div key={opt.id} className="option-item" onClick={() => handleEditClick(opt)}>
+                <div
+                  key={opt.id}
+                  className={`option-item${activeOptionId === opt.id ? ' active' : ''}`}
+                  onClick={() => handleEditClick(opt)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      handleEditClick(opt);
+                    }
+                  }}
+                >
                   <span>{opt.name} ({opt.weightOz} oz) - SKU: {opt.sku}</span>
                 </div>
               ))

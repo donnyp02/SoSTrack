@@ -21,7 +21,9 @@ import WhitelistManager from './components/WhitelistManager';
 import Inventory from './components/Inventory';
 import { InventoryProvider } from './contexts/InventoryContext';
 import NotificationModal from './components/NotificationModal';
+import ReportsModal from './components/ReportsModal';
 import { FaCog } from 'react-icons/fa';
+import { combineFlavorName, stripContainerSuffix, normalizeString } from './utils/containerUtils';
 
 function App() {
   const { user, loading: authLoading } = useAuth();
@@ -192,20 +194,40 @@ function App() {
         return { ...template, quantity: inventoryItem?.quantity || 0 };
       });
 
-      const calculatedOnHandOz = packageOptions.reduce((total, opt) => {
-        return total + ((opt.weightOz || 0) * (opt.quantity || 0));
-      }, 0);
+      const { totalOunces, totalUnits } = packageOptions.reduce(
+        (totals, opt) => {
+          const quantity = opt.quantity || 0;
+          const weight = opt.weightOz || 0;
+          totals.totalOunces += weight * quantity;
+          totals.totalUnits += quantity;
+          return totals;
+        },
+        { totalOunces: 0, totalUnits: 0 }
+      );
 
       const topPriorityBatch = sortedBatches.find(b => b.status === 'Make') || sortedBatches.find(b => b.status === 'Package') || sortedBatches.find(b => b.status === 'Ready');
       const overallStatus = topPriorityBatch?.status || 'Idle';
 
-      return { ...product, onHandOz: calculatedOnHandOz, batches: sortedBatches, status: overallStatus, packageOptions };
+      return {
+        ...product,
+        onHandOz: totalOunces,
+        onHandUnits: totalUnits,
+        batches: sortedBatches,
+        status: overallStatus,
+        packageOptions
+      };
     });
 
     if (selectedCategoryId) { combined = combined.filter(p => p.categoryId === selectedCategoryId); }
     if (debouncedSearchTerm) { combined = combined.filter(p => p.flavor.toLowerCase().includes(debouncedSearchTerm.toLowerCase())); }
 
-    const statusPriority = { 'Make': 1, 'Package': 2, 'Ready': 3, 'Idle': 4, 'Completed': 5 };
+    const priorityByTab = {
+      Production: { Make: 1, Package: 2, Ready: 3, Idle: 4, Completed: 5 },
+      Packaging: { Package: 1, Ready: 2, Make: 3, Idle: 4, Completed: 5 },
+      Shipping: { Ready: 1, Package: 2, Make: 3, Idle: 4, Completed: 5 },
+    };
+    const defaultPriority = { Make: 1, Package: 2, Ready: 3, Idle: 4, Completed: 5 };
+    const statusPriority = priorityByTab[activeTab] || defaultPriority;
     combined.sort((a, b) => {
       const priorityA = statusPriority[a.status] || 6;
       const priorityB = statusPriority[b.status] || 6;
@@ -216,7 +238,7 @@ function App() {
       return a.flavor.localeCompare(b.flavor);
     });
     return combined;
-  }, [products, categories, batches, debouncedSearchTerm, selectedCategoryId]);
+  }, [products, categories, batches, debouncedSearchTerm, selectedCategoryId, activeTab]);
 
   const tabCounts = useMemo(() => {
     const counts = { Make: 0, Package: 0, Ready: 0 };
@@ -278,7 +300,7 @@ function App() {
     }
   };
 
-  const handleProductEdit = async ({ category: categoryName, flavor, categorySku, flavorSku }) => {
+  const handleProductEdit = async ({ category: categoryName, flavor, categorySku, flavorSku, selectedContainers }) => {
     const product = products[selectedProductId];
     if (!product) {
       toast.error('Unable to locate product for editing');
@@ -321,17 +343,32 @@ function App() {
       }
     }
 
-    await updateDoc(doc(db, "products", product.id), {
+    const productUpdates = {
       flavor: trimmedFlavor,
       categoryId,
       flavorSku: trimmedFlavorSku
-    });
+    };
+    if (selectedContainers !== undefined) {
+      productUpdates.selectedContainers = selectedContainers;
+    }
+    await updateDoc(doc(db, "products", product.id), productUpdates);
     toast.success('Product updated');
     handleOpenModal('manageProduct');
   };
   
-  const handleTemplateSave = async (newTemplates) => {
-    const category = categories[products[selectedProductId].categoryId];
+  const handleTemplateSave = async (payload) => {
+    const newTemplates = Array.isArray(payload) ? payload : payload?.templates || [];
+    const selectedTemplateId = Array.isArray(payload) ? null : payload?.selectedTemplateId || null;
+
+    const product = products[selectedProductId];
+    const category = product ? categories[product.categoryId] : null;
+    const previousTemplates = category?.containerTemplates || [];
+
+    if (!category) {
+      toast.error('Failed to locate category for container update');
+      return;
+    }
+
     const categoryDocRef = doc(db, "categories", category.id);
     try {
       await updateDoc(categoryDocRef, { containerTemplates: newTemplates });
@@ -340,6 +377,53 @@ function App() {
       console.error("Error updating templates:", error);
       toast.error('Failed to update templates');
     }
+
+    if (product) {
+      const previousSelection = Array.isArray(product.selectedContainers) ? product.selectedContainers[0] : null;
+      const strippedFlavor = normalizeString(
+        stripContainerSuffix(product.flavor, previousTemplates, previousSelection)
+      );
+
+      let nextSelection = null;
+      if (selectedTemplateId && newTemplates.some((template) => template?.id === selectedTemplateId)) {
+        nextSelection = selectedTemplateId;
+      } else if (previousSelection && newTemplates.some((template) => template?.id === previousSelection)) {
+        nextSelection = previousSelection;
+      } else if (newTemplates.length > 0) {
+        nextSelection = newTemplates[0].id;
+      }
+
+      const updates = {};
+      if (nextSelection) {
+        const selectedTemplate = newTemplates.find((template) => template?.id === nextSelection);
+        const combinedFlavor = normalizeString(
+          combineFlavorName(strippedFlavor, selectedTemplate?.name)
+        );
+        if (normalizeString(product.flavor) !== combinedFlavor) {
+          updates.flavor = combinedFlavor;
+        }
+        if (!previousSelection || previousSelection !== nextSelection) {
+          updates.selectedContainers = [nextSelection];
+        }
+      } else {
+        if (previousSelection) {
+          updates.selectedContainers = [];
+        }
+        if (normalizeString(product.flavor) !== strippedFlavor) {
+          updates.flavor = strippedFlavor;
+        }
+      }
+
+      if (Object.keys(updates).length > 0) {
+        try {
+          await updateDoc(doc(db, "products", product.id), updates);
+        } catch (error) {
+          console.error("Error updating product with container selection:", error);
+          toast.error('Failed to update product container selection');
+        }
+      }
+    }
+
     handleOpenModal('manageProduct');
   };
 
@@ -412,7 +496,7 @@ function App() {
     setProductToDelete(null);
   };
 
-  const handleAddProduct = async ({ category: categoryName, flavor, categorySku, flavorSku }) => {
+  const handleAddProduct = async ({ category: categoryName, flavor, categorySku, flavorSku, selectedContainers = [] }) => {
     const norm = (s) => (s || '').toString().trim().toLowerCase();
     const base = (s) => {
       const n = norm(s);
@@ -432,7 +516,7 @@ function App() {
         await updateDoc(doc(db, "categories", categoryId), updates);
       }
     }
-    await addDoc(collection(db, "products"), { categoryId: categoryId, flavor: flavor, flavorSku: flavorSku, containerInventory: [] });
+    await addDoc(collection(db, "products"), { categoryId: categoryId, flavor: flavor, flavorSku: flavorSku, containerInventory: [], selectedContainers: selectedContainers });
     handleCloseModal();
     toast.success('Product added successfully');
   };
@@ -463,11 +547,11 @@ function App() {
           const category = categories[product.categoryId];
           let container = null;
           if (row.assignedContainerId) {
-            container = (category.containerTemplates || []).find(ct => ct.id === row.assignedContainerId);
+            container = (category?.containerTemplates || []).find(ct => ct.id === row.assignedContainerId);
           }
           if (!container) {
             const skuTail = (row.sku || '').toString().split('-').pop();
-            container = (category.containerTemplates || []).find(ct => ct.sku === skuTail);
+            container = (category?.containerTemplates || []).find(ct => ct.sku === skuTail);
           }
           if (container) {
             const newInventory = [...(product.containerInventory || [])];
@@ -638,7 +722,7 @@ function App() {
                 <ErrorBoundary>
                   <div className="simple-list">
                     {(displayList || []).map((product) => (
-                      <div key={product.id} style={{ paddingBottom: 10 }}>
+                      <div key={product.id} style={{ paddingBottom: 6 }}>
                         <ProductCard
                           product={product}
                           category={categories[product.categoryId]}
@@ -673,7 +757,7 @@ function App() {
                 <ErrorBoundary>
                   <div className="simple-list">
                     {(displayList || []).map((product) => (
-                      <div key={product.id} style={{ paddingBottom: 10 }}>
+                      <div key={product.id} style={{ paddingBottom: 6 }}>
                         <ProductCard
                           product={product}
                           category={categories[product.categoryId]}
@@ -708,7 +792,7 @@ function App() {
                 <ErrorBoundary>
                   <div className="simple-list">
                     {(displayList || []).map((product) => (
-                      <div key={product.id} style={{ paddingBottom: 10 }}>
+                      <div key={product.id} style={{ paddingBottom: 6 }}>
                         <ProductCard
                           product={product}
                           category={categories[product.categoryId]}
@@ -735,7 +819,20 @@ function App() {
                 }
               </select>
               <button className="clear-btn" onClick={() => { setSearchTerm(''); setSelectedCategoryId(''); }}>Clear</button>
-              <button className="btn-primary" style={{ marginLeft: 'auto' }} onClick={() => setActiveModal('importCsvPanel')}>Import CSV</button>
+              <button
+                className="btn-secondary"
+                style={{ marginLeft: 'auto' }}
+                onClick={() => setActiveModal('reports')}
+              >
+                Reports
+              </button>
+              <button
+                className="btn-primary"
+                style={{ marginLeft: '12px' }}
+                onClick={() => setActiveModal('importCsvPanel')}
+              >
+                Import CSV
+              </button>
             </div>
             <div className="inventory-list">
               {loading ? (
@@ -744,7 +841,7 @@ function App() {
                 <ErrorBoundary>
                   <div className="simple-list">
                     {(displayList || []).map((product) => (
-                      <div key={product.id} style={{ paddingBottom: 10 }}>
+                      <div key={product.id} style={{ paddingBottom: 6 }}>
                         <ProductCard
                           product={product}
                           category={categories[product.categoryId]}
@@ -846,6 +943,13 @@ function App() {
         <NotificationModal
           message={notification}
           onClose={() => setNotification(null)}
+        />
+      )}
+      {activeModal === 'reports' && (
+        <ReportsModal
+          products={products}
+          categories={categories}
+          onClose={() => setActiveModal(null)}
         />
       )}
 
