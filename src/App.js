@@ -467,10 +467,90 @@ function App() {
     setIntakeIngredientId(null);
   };
 
-  const handleIngredientIntakeSubmit = (payload) => {
-    console.debug('Ingredient intake submission (preview)', payload);
-    toast.success('Ingredient intake captured (preview only)');
-    handleIngredientIntakeClose();
+  const handleIngredientIntakeSubmit = async (payload) => {
+    try {
+      // If creating a new ingredient, add it first
+      let ingredientId = payload.ingredientId;
+      let ingredientName = payload.ingredient?.name || '';
+
+      if (payload.creatingIngredient && payload.ingredientDraft?.name) {
+        const newIngredientDoc = await addDoc(collection(db, "ingredients"), {
+          name: payload.ingredientDraft.name,
+          category: payload.ingredientDraft.category || 'Candy',
+          defaultUnit: payload.ingredientDraft.defaultUnit || 'lbs',
+          createdAt: serverTimestamp()
+        });
+        ingredientId = newIngredientDoc.id;
+        ingredientName = payload.ingredientDraft.name;
+      } else if (payload.ingredient) {
+        ingredientName = payload.ingredient.name;
+      }
+
+      // Create the ingredient lot document
+      const lotData = {
+        // Ingredient reference
+        ingredientId: ingredientId,
+        ingredientName: ingredientName,
+
+        // Supplier info
+        supplierName: payload.supplier?.name || '',
+        supplierContact: payload.supplier?.contact || '',
+        supplierOrderRef: payload.supplier?.orderRef || '',
+        supplierLotNumber: payload.supplierLotNumber || '',
+
+        // Internal tracking
+        internalLotNumber: payload.internalLotNumber || '',
+
+        // Quantity
+        quantity: {
+          amount: parseFloat(payload.quantity?.amount) || 0,
+          unit: payload.quantity?.unit || 'lbs',
+          originalAmount: payload.quantity?.originalAmount || '',
+          remaining: parseFloat(payload.quantity?.amount) || 0 // Start with full amount
+        },
+
+        // Costs
+        cost: {
+          total: parseFloat(payload.cost?.total) || 0,
+          perUnit: parseFloat(payload.cost?.perUnit) || 0
+        },
+
+        // Dates
+        intakeDate: payload.intakeDate || serverTimestamp(),
+        expirationDate: payload.expirationDate || null,
+
+        // Storage
+        storageLocation: {
+          area: payload.storageLocation?.area || '',
+          bin: payload.storageLocation?.bin || ''
+        },
+
+        // QA
+        qaChecks: payload.qaChecks || {
+          tempOk: false,
+          packagingIntact: false,
+          coaReceived: false
+        },
+        coaUrl: payload.coaUrl || '',
+
+        // Status
+        status: payload.status || 'Pending QA',
+        notes: payload.notes || '',
+
+        // Metadata
+        createdAt: serverTimestamp(),
+        createdBy: user?.email || 'unknown',
+        updatedAt: serverTimestamp()
+      };
+
+      await addDoc(collection(db, "ingredientLots"), lotData);
+
+      toast.success(`Ingredient lot ${payload.internalLotNumber} logged successfully!`);
+      handleIngredientIntakeClose();
+    } catch (error) {
+      console.error('Error saving ingredient intake:', error);
+      toast.error(`Failed to save ingredient intake: ${error.message || 'Unknown error'}`);
+    }
   };
 
   const handleProductEdit = async ({ category: categoryName, flavor, categorySku, flavorSku, selectedContainers }) => {
