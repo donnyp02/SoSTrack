@@ -29,6 +29,7 @@ import ReportsModal from './components/ReportsModal';
 import CsvImportPreviewModal from './components/CsvImportPreviewModal';
 import ErrorBoundary from './components/ErrorBoundary';
 import LotTrackingPanel from './components/LotTrackingPanel';
+import IngredientIntakeModal from './components/IngredientIntakeModal';
 import { FaCog, FaExclamationTriangle } from 'react-icons/fa';
 import { combineFlavorName, stripContainerSuffix, normalizeString } from './utils/containerUtils';
 
@@ -40,6 +41,8 @@ function App() {
   const { data: categories, loading: categoriesLoading } = useFirestoreCollection(db, 'categories', !!user);
   const { data: firestoreProducts, loading: productsLoading } = useFirestoreCollection(db, 'products', !!user);
   const { data: batches, loading: batchesLoading } = useFirestoreCollection(db, 'batches', !!user);
+  const { data: ingredients, loading: ingredientsLoading } = useFirestoreCollection(db, 'ingredients', !!user);
+  const { data: ingredientLots, loading: ingredientLotsLoading } = useFirestoreCollection(db, 'ingredientLots', !!user);
 
   // Keep products in state for InventoryProvider (which needs setProducts for optimistic updates)
   const [products, setProducts] = useState({});
@@ -49,7 +52,7 @@ function App() {
     setProducts(firestoreProducts);
   }, [firestoreProducts]);
 
-  const loading = categoriesLoading || productsLoading || batchesLoading;
+  const loading = categoriesLoading || productsLoading || batchesLoading || ingredientsLoading || ingredientLotsLoading;
 
   const [selectedProductId, setSelectedProductId] = useState(null);
   const [activeModal, setActiveModal] = useState(null);
@@ -59,6 +62,10 @@ function App() {
   const debouncedSearchTerm = useDebounce(searchTerm, SEARCH_DEBOUNCE_DELAY);
   const [selectedCategoryId, setSelectedCategoryId] = useState('');
   const [activeTab, setActiveTab] = useState('Production');
+  const [inventoryView, setInventoryView] = useState('catalog');
+  const [selectedIngredientId, setSelectedIngredientId] = useState(null);
+  const [intakeIngredientId, setIntakeIngredientId] = useState(null);
+  const [isIngredientIntakeOpen, setIsIngredientIntakeOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(() => {
     const saved = localStorage.getItem('darkMode');
     return saved ? JSON.parse(saved) : false;
@@ -174,6 +181,13 @@ function App() {
     });
     return counts;
   }, [batches]);
+
+  useEffect(() => {
+    if (activeTab !== 'Inventory') {
+      setInventoryView('catalog');
+      setSelectedIngredientId(null);
+    }
+  }, [activeTab]);
 
   const lotTrackingData = useMemo(() => {
     if (!batches || !products || !categories) return [];
@@ -295,6 +309,97 @@ function App() {
     });
   }, [batches, products, categories]);
 
+  const ingredientDashboardData = useMemo(() => {
+    if (!ingredients || !ingredientLots) {
+      return { cards: [], lots: [] };
+    }
+
+    const toDate = (value) => {
+      if (!value) return null;
+      if (value instanceof Date) return value;
+      if (typeof value.toDate === 'function') return value.toDate();
+      if (typeof value.toMillis === 'function') return new Date(value.toMillis());
+      if (typeof value === 'number') return new Date(value);
+      if (typeof value === 'string') {
+        const maybeDate = new Date(value);
+        return Number.isNaN(maybeDate.getTime()) ? null : maybeDate;
+      }
+      return null;
+    };
+
+    const normalizeLots = Object.values(ingredientLots).map((lot) => {
+      const quantityObj = lot.quantity || {};
+      const amount = Number(quantityObj.amount ?? lot.quantityAmount ?? 0);
+      const unit = quantityObj.unit || lot.quantityUnit || lot.defaultUnit || 'units';
+      const expirationDate = toDate(lot.expirationDate || lot.bestBy || lot.saleByDate);
+      const intakeDate = toDate(lot.intakeDate || lot.receivedAt || lot.createdAt);
+
+      return {
+        ...lot,
+        amount: Number.isFinite(amount) ? amount : 0,
+        unit,
+        expirationDate,
+        intakeDate,
+        status: lot.status || 'Pending QA',
+        supplierName: lot.supplier?.name || lot.supplierName || 'Unknown supplier'
+      };
+    });
+
+    const cards = Object.values(ingredients).map((ingredient) => {
+      const relevantLots = normalizeLots.filter((lot) => lot.ingredientId === ingredient.id);
+      const activeLots = relevantLots.filter((lot) => lot.status !== 'Depleted');
+      const onHandAmount = activeLots.reduce((sum, lot) => sum + (lot.amount || 0), 0);
+      const defaultUnit = ingredient.defaultUnit || activeLots[0]?.unit || 'units';
+
+      const soonBoundary = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+      const expiringSoon = activeLots.filter(
+        (lot) => lot.expirationDate && lot.expirationDate <= soonBoundary
+      ).length;
+
+      const onHold = activeLots.filter((lot) => lot.status === 'Quarantined' || lot.status === 'On Hold').length;
+
+      const nextExpiration = activeLots
+        .filter((lot) => lot.expirationDate)
+        .map((lot) => lot.expirationDate)
+        .sort((a, b) => a - b)[0];
+
+      return {
+        id: ingredient.id,
+        name: ingredient.name,
+        category: ingredient.category || 'Uncategorized',
+        onHandLabel: `${onHandAmount.toFixed(onHandAmount % 1 === 0 ? 0 : 1)} ${defaultUnit}`,
+        totalLots: relevantLots.length,
+        expiringSoon,
+        onHold,
+        nextExpiration,
+        allergenFlags: ingredient.allergenFlags || [],
+        preferredVendors: ingredient.supplierPrefs || []
+      };
+    });
+
+    cards.sort((a, b) => a.name.localeCompare(b.name));
+
+    normalizeLots.sort((a, b) => {
+      const dateA = a.expirationDate ? a.expirationDate.getTime() : Infinity;
+      const dateB = b.expirationDate ? b.expirationDate.getTime() : Infinity;
+      if (dateA !== dateB) return dateA - dateB;
+      return (a.intakeDate?.getTime() || 0) - (b.intakeDate?.getTime() || 0);
+    });
+
+    return { cards, lots: normalizeLots };
+  }, [ingredients, ingredientLots]);
+
+  const visibleIngredientLots = useMemo(() => {
+    const lots = ingredientDashboardData.lots || [];
+    if (!selectedIngredientId) return lots;
+    return lots.filter((lot) => lot.ingredientId === selectedIngredientId);
+  }, [ingredientDashboardData, selectedIngredientId]);
+
+  const selectedIngredient = useMemo(() => {
+    if (!selectedIngredientId || !ingredients) return null;
+    return ingredients[selectedIngredientId] || null;
+  }, [selectedIngredientId, ingredients]);
+
   const handleDataUpdate = async (newStatus, data = null, batchId = null, options = {}) => {
     const product = products[selectedProductId];
     try {
@@ -355,6 +460,17 @@ function App() {
       console.error("Error deleting batches:", error);
       toast.error(`Failed to delete batches: ${error.message || 'Unknown error'}`);
     }
+  };
+
+  const handleIngredientIntakeClose = () => {
+    setIsIngredientIntakeOpen(false);
+    setIntakeIngredientId(null);
+  };
+
+  const handleIngredientIntakeSubmit = (payload) => {
+    console.debug('Ingredient intake submission (preview)', payload);
+    toast.success('Ingredient intake captured (preview only)');
+    handleIngredientIntakeClose();
   };
 
   const handleProductEdit = async ({ category: categoryName, flavor, categorySku, flavorSku, selectedContainers }) => {
@@ -717,7 +833,6 @@ function App() {
       pauseOnHover
       theme="light"
       limit={3}
-      stacked
     />
     <div className={`App ${darkMode ? 'dark-mode' : ''}`}>
       <header className="header">
@@ -770,9 +885,6 @@ function App() {
           {tabCounts.Package > 0 && <span className="tab-badge package">{tabCounts.Package}</span>}
         </button>
         <button className={`tab-button ${activeTab === 'Inventory' ? 'active' : ''}`} onClick={() => setActiveTab('Inventory')}>Inventory</button>
-        <button className={`tab-button ${activeTab === 'LotTracking' ? 'active' : ''}`} onClick={() => setActiveTab('LotTracking')}>
-          Lot Tracking
-        </button>
       </nav>
       <main>
         {(activeTab === 'Production' || activeTab === 'Packaging' || activeTab === 'Shipping') && (
@@ -791,35 +903,198 @@ function App() {
           />
         )}
         {activeTab === 'Inventory' && (
-          <ProductListTab
-            displayList={displayList}
-            categories={categories}
-            loading={loading}
-            searchTerm={searchTerm}
-            setSearchTerm={setSearchTerm}
-            selectedCategoryId={selectedCategoryId}
-            setSelectedCategoryId={setSelectedCategoryId}
-            onProductClick={(productId) => {
-              setSelectedProductId(productId);
-              setActiveModal('inventoryManage');
-            }}
-            showImportButton={true}
-            showReportsButton={true}
-            onImportClick={() => setActiveModal('importCsvPanel')}
-            onReportsClick={() => setActiveModal('reports')}
-          />
-        )}
-        {activeTab === 'LotTracking' && (
-          <LotTrackingPanel
-            lots={lotTrackingData}
-            loading={loading}
-            onInspectLot={(lot) => {
-              console.debug('Inspect lot', lot?.lotNumber);
-            }}
-          />
+          <>
+            <div className="inventory-sub-nav">
+              <button
+                className={inventoryView === 'catalog' ? 'active' : ''}
+                onClick={() => setInventoryView('catalog')}
+              >
+                Inventory Overview
+              </button>
+              <button
+                className={inventoryView === 'lotTracking' ? 'active' : ''}
+                onClick={() => setInventoryView('lotTracking')}
+              >
+                Lot Tracking
+              </button>
+              <button
+                className={inventoryView === 'ingredients' ? 'active' : ''}
+                onClick={() => setInventoryView('ingredients')}
+              >
+                Ingredients
+              </button>
+            </div>
+
+            {inventoryView === 'catalog' && (
+              <ProductListTab
+                displayList={displayList}
+                categories={categories}
+                loading={loading}
+                searchTerm={searchTerm}
+                setSearchTerm={setSearchTerm}
+                selectedCategoryId={selectedCategoryId}
+                setSelectedCategoryId={setSelectedCategoryId}
+                onProductClick={(productId) => {
+                  setSelectedProductId(productId);
+                  setActiveModal('inventoryManage');
+                }}
+                showImportButton={true}
+                showReportsButton={true}
+                onImportClick={() => setActiveModal('importCsvPanel')}
+                onReportsClick={() => setActiveModal('reports')}
+              />
+            )}
+
+            {inventoryView === 'lotTracking' && (
+              <LotTrackingPanel
+                lots={lotTrackingData}
+                loading={loading}
+                onInspectLot={(lot) => {
+                  console.debug('Inspect lot', lot?.lotNumber);
+                }}
+              />
+            )}
+
+            {inventoryView === 'ingredients' && (
+              <div className="ingredient-dashboard">
+                <div className="ingredient-toolbar">
+                  <div className="ingredient-toolbar-left">
+                    <h2>Ingredient Inventory</h2>
+                    {selectedIngredient && (
+                      <p className="ingredient-subtitle">
+                        Viewing lots for <strong>{selectedIngredient.name}</strong>
+                      </p>
+                    )}
+                  </div>
+                  <div className="ingredient-toolbar-actions">
+                    {selectedIngredientId && (
+                      <button
+                        className="btn-text"
+                        onClick={() => setSelectedIngredientId(null)}
+                      >
+                        Clear filter
+                      </button>
+                    )}
+                    <button
+                      className="btn-primary"
+                      onClick={() => {
+                        setIntakeIngredientId(selectedIngredientId);
+                        setIsIngredientIntakeOpen(true);
+                      }}
+                    >
+                      + Log Intake
+                    </button>
+                  </div>
+                </div>
+
+                <div className="ingredient-card-grid">
+                  {ingredientDashboardData.cards.length === 0 && (
+                    <div className="empty-state">
+                      <p>No ingredients tracked yet. Log an intake to get started.</p>
+                    </div>
+                  )}
+
+                  {ingredientDashboardData.cards.map((card) => {
+                    const isActive = selectedIngredientId === card.id;
+                    return (
+                      <button
+                        key={card.id}
+                        className={`ingredient-card ${isActive ? 'active' : ''}`}
+                        onClick={() => setSelectedIngredientId(isActive ? null : card.id)}
+                      >
+                        <header>
+                          <span className="ingredient-category">{card.category}</span>
+                          <h3>{card.name}</h3>
+                        </header>
+                        <dl>
+                          <div>
+                            <dt>On hand</dt>
+                            <dd>{card.onHandLabel}</dd>
+                          </div>
+                          <div>
+                            <dt>Total lots</dt>
+                            <dd>{card.totalLots}</dd>
+                          </div>
+                          <div>
+                            <dt>Expiring soon</dt>
+                            <dd>{card.expiringSoon}</dd>
+                          </div>
+                          <div>
+                            <dt>On hold</dt>
+                            <dd>{card.onHold}</dd>
+                          </div>
+                        </dl>
+                        {card.nextExpiration && (
+                          <footer>
+                            <span>Next expiration</span>
+                            <strong>{card.nextExpiration.toLocaleDateString()}</strong>
+                          </footer>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="ingredient-lot-table">
+                  <div className="table-head">
+                    <span>Lot</span>
+                    <span>Ingredient</span>
+                    <span>Supplier</span>
+                    <span>Received</span>
+                    <span>Expires</span>
+                    <span>Status</span>
+                    <span>Quantity</span>
+                    <span>Storage</span>
+                  </div>
+                  <div className="table-body">
+                    {visibleIngredientLots.length === 0 ? (
+                      <div className="table-row placeholder">
+                        <span>No intake lots logged yet{selectedIngredient ? ` for ${selectedIngredient.name}` : ''}.</span>
+                      </div>
+                    ) : (
+                      visibleIngredientLots.map((lot) => (
+                        <div key={lot.id} className="table-row">
+                          <span>
+                            <strong>{lot.internalLotNumber || lot.id}</strong>
+                            {lot.supplierLotNumber && <small>Supplier lot {lot.supplierLotNumber}</small>}
+                          </span>
+                          <span>
+                            {ingredients?.[lot.ingredientId]?.name || 'Unknown ingredient'}
+                            <small>{ingredients?.[lot.ingredientId]?.category || '—'}</small>
+                          </span>
+                          <span>{lot.supplierName}</span>
+                          <span>{lot.intakeDate ? lot.intakeDate.toLocaleDateString() : '—'}</span>
+                          <span>{lot.expirationDate ? lot.expirationDate.toLocaleDateString() : '—'}</span>
+                          <span>
+                            <span className={`status-pill ingredient ${lot.status.toLowerCase().replace(/\s+/g, '-')}`}>
+                              {lot.status}
+                            </span>
+                          </span>
+                          <span>
+                            {lot.amount ? `${lot.amount}${lot.unit ? ` ${lot.unit}` : ''}` : '—'}
+                          </span>
+                          <span>{lot.storageLocation?.name || lot.storageLocation?.bin || lot.storageLocation || '—'}</span>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </main>
       
+      {isIngredientIntakeOpen && (
+        <IngredientIntakeModal
+          isOpen={isIngredientIntakeOpen}
+          onClose={handleIngredientIntakeClose}
+          onSubmit={handleIngredientIntakeSubmit}
+          ingredients={ingredients}
+          defaultIngredientId={intakeIngredientId}
+        />
+      )}
+
       {activeModal === 'manageProduct' && selectedProduct && (
         <ManagementModal
           product={selectedProduct}

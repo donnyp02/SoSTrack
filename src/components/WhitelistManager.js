@@ -1,14 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { FaExclamationTriangle } from 'react-icons/fa';
 import { db } from '../firebase';
 import { toast } from 'react-toastify';
 import './WhitelistManager.css';
+import { useConfirm } from '../hooks/useConfirm';
 
 const WhitelistManager = () => {
   const [emails, setEmails] = useState([]);
   const [newEmail, setNewEmail] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const { showConfirm, ConfirmDialog } = useConfirm();
 
   useEffect(() => {
     loadWhitelist();
@@ -70,16 +73,24 @@ const WhitelistManager = () => {
     setNewEmail('');
   };
 
-  const handleRemoveEmail = (emailToRemove) => {
+  const handleRemoveEmail = async (emailToRemove) => {
     if (emails.length === 1) {
       toast.error('Cannot remove last email. At least one admin must remain.');
       return;
     }
 
-    if (window.confirm(`Remove ${emailToRemove} from whitelist?`)) {
-      const updatedEmails = emails.filter(e => e !== emailToRemove);
-      saveWhitelist(updatedEmails);
-    }
+    const confirmed = await showConfirm({
+      title: 'Remove Email?',
+      message: `Remove ${emailToRemove} from whitelist? They will no longer be able to access SoSTrack.`,
+      confirmText: 'Remove',
+      confirmColor: 'red',
+      icon: <FaExclamationTriangle />
+    });
+
+    if (!confirmed) return;
+
+    const updatedEmails = emails.filter(e => e !== emailToRemove);
+    saveWhitelist(updatedEmails);
   };
 
   const handleKeyPress = (e) => {
@@ -97,8 +108,10 @@ const WhitelistManager = () => {
   }
 
   return (
-    <div className="whitelist-manager">
-      <div className="whitelist-header">
+    <>
+      <ConfirmDialog />
+      <div className="whitelist-manager">
+        <div className="whitelist-header">
         <h2>Authorized Users</h2>
         <p>Manage who can access SoSTrack. Only emails in this list can sign in with Google.</p>
       </div>
@@ -160,6 +173,7 @@ const WhitelistManager = () => {
         </ul>
       </div>
     </div>
+    </>
   );
 };
 

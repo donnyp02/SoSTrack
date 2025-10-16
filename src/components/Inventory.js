@@ -1,5 +1,6 @@
 ﻿import React, { useState, useMemo, useRef } from 'react';
 import Papa from 'papaparse';
+import { FaExclamationTriangle } from 'react-icons/fa';
 import './Inventory.css';
 import AssignProductModal from './AssignProductModal';
 import AddProductModal from './AddProductModal';
@@ -7,6 +8,7 @@ import ManualStockEditor from './ManualStockEditor';
 import InventoryHistory from './InventoryHistory';
 import ProductCard from './ProductCard';
 import CsvViewerModal from './CsvViewerModal';
+import { useConfirm } from '../hooks/useConfirm';
 
 const SECTIONS = {
   IMPORT: 'import',
@@ -25,6 +27,7 @@ const Inventory = ({ onImport, products, categories, onAddProduct, onInventorySa
   const [csvViewer, setCsvViewer] = useState({ open: false, id: null });
   const [showFileMenu, setShowFileMenu] = useState(false);
   const fileInputRef = useRef(null);
+  const { showConfirm, ConfirmDialog } = useConfirm();
 
   const handleFileChange = (e) => {
     setFile(e.target.files[0]);
@@ -111,16 +114,24 @@ const Inventory = ({ onImport, products, categories, onAddProduct, onInventorySa
   const openHistoryModal = () => setHistoryModalOpen(true);
   const closeHistoryModal = () => setHistoryModalOpen(false);
 
-  const handleRemoveRow = (index) => {
+  const handleRemoveRow = async (index) => {
     const item = csvData[index] || {};
     const name = (item['product name'] ?? item['Product Name'] ?? '').toString();
     const desc = (item['product description'] ?? item['Product Description'] ?? '').toString();
     const qty = (item['product quantity'] ?? item['Product Quantity'] ?? '').toString();
     const label = [name, desc].filter(Boolean).join(' — ');
-    const msg = label
-      ? `Remove this line from import?\n\n${label}${qty ? `\nQty: ${qty}` : ''}`
-      : 'Remove this line from import?';
-    if (!window.confirm(msg)) return;
+
+    const confirmed = await showConfirm({
+      title: 'Remove Line?',
+      message: label
+        ? `Remove this line from import?\n\n${label}${qty ? `\nQty: ${qty}` : ''}`
+        : 'Remove this line from import?',
+      confirmText: 'Remove',
+      confirmColor: 'red',
+      icon: <FaExclamationTriangle />
+    });
+
+    if (!confirmed) return;
     setCsvData(prev => prev.filter((_, i) => i !== index));
   };
 
@@ -194,6 +205,7 @@ const Inventory = ({ onImport, products, categories, onAddProduct, onInventorySa
 
   return (
     <>
+      <ConfirmDialog />
       <div className="inventory-container">
         <div className="sub-tab-navigation">
           <button
