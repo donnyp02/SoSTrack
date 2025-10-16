@@ -3,6 +3,23 @@
     max-width: 550px;
   }
 
+  .modal-title-block {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+
+  .modal-title-block h3 {
+    margin: 0;
+  }
+
+  .production-product-name {
+    margin: 0;
+    font-size: 0.95rem;
+    color: #64748b;
+    font-weight: 500;
+  }
+
   /* Production Lot Number */
   .lot-number-display {
     margin-bottom: 24px;
@@ -286,6 +303,10 @@
 
 body.dark-mode .package-input-group label {
   color: #e2e8f0;
+}
+
+body.dark-mode .production-product-name {
+  color: #94a3b8;
 }
 
 body.dark-mode .package-input-group input {

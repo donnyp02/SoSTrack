@@ -23,6 +23,22 @@ const MakeRequestModal = ({ product, onSubmit, onClose }) => {
   const [showQRScanner, setShowQRScanner] = useState(false);
   const [productionLotNumber] = useState(generateProductionLotNumber());
 
+  const productName = useMemo(() => {
+    if (!product) return '';
+    const candidates = [
+      product.displayName,
+      product.name,
+      product.flavor,
+      product.label,
+      product.title
+    ].filter(Boolean);
+    if (candidates.length > 0) return candidates[0];
+    const categoryPieces = [product.categoryLabel, product.categoryName]
+      .filter(Boolean)
+      .join(' ');
+    return categoryPieces || 'Selected product';
+  }, [product]);
+
   const handleQuantityChange = (packageId, value) => {
     const newQuantities = { ...quantities };
     newQuantities[packageId] = parseInt(value, 10) || 0;
@@ -115,7 +131,12 @@ const MakeRequestModal = ({ product, onSubmit, onClose }) => {
       <div className="modal-backdrop">
         <div className="modal-content small-modal">
           <div className="modal-header">
-            <h3>New Production Run</h3>
+            <div className="modal-title-block">
+              <h3>New Production Run</h3>
+              {productName && (
+                <p className="production-product-name">{productName}</p>
+              )}
+            </div>
             <button onClick={onClose} className="close-button">&times;</button>
           </div>
           <div className="modal-body" style={{display: 'block'}}>
