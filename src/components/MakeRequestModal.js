@@ -12,8 +12,8 @@ const generateProductionLotNumber = () => {
   return `PROD-${date}-${time}${random}`;
 };
 
-// It now correctly expects the 'product' prop
-const MakeRequestModal = ({ product, onSubmit, onClose }) => {
+// It now correctly expects the 'product' and 'equipment' props
+const MakeRequestModal = ({ product, equipment = {}, onSubmit, onClose }) => {
   const [quantities, setQuantities] = useState({});
   const [freezeDryerInfo, setFreezeDryerInfo] = useState({
     machineId: '',
@@ -38,6 +38,13 @@ const MakeRequestModal = ({ product, onSubmit, onClose }) => {
       .join(' ');
     return categoryPieces || 'Selected product';
   }, [product]);
+
+  // Get active freeze dryers from equipment
+  const activeFreezeDryers = useMemo(() => {
+    return Object.values(equipment || {})
+      .filter(eq => eq.type === 'freezeDryer' && eq.status === 'active')
+      .sort((a, b) => (a.machineId || '').localeCompare(b.machineId || ''));
+  }, [equipment]);
 
   const handleQuantityChange = (packageId, value) => {
     const newQuantities = { ...quantities };
@@ -148,7 +155,7 @@ const MakeRequestModal = ({ product, onSubmit, onClose }) => {
                   <div className="lot-number-badge">{productionLotNumber}</div>
                 </div>
 
-                {/* Freeze Dryer Scanner */}
+                {/* Freeze Dryer Selection */}
                 <div className="freeze-dryer-section">
                   <label>Freeze Dryer (Optional)</label>
                   {!freezeDryerInfo.machineId ? (
@@ -161,12 +168,33 @@ const MakeRequestModal = ({ product, onSubmit, onClose }) => {
                         <FaQrcode /> Scan QR Code
                       </button>
                       <span style={{margin: '0 8px', color: '#9ca3af'}}>or</span>
-                      <input
-                        type="text"
-                        placeholder="Enter machine ID manually"
-                        onChange={(e) => handleManualFreezeDryerEntry(e.target.value)}
-                        className="manual-entry-input"
-                      />
+                      {activeFreezeDryers.length > 0 ? (
+                        <select
+                          className="manual-entry-input"
+                          onChange={(e) => {
+                            const selectedEq = activeFreezeDryers.find(eq => eq.id === e.target.value);
+                            if (selectedEq) {
+                              setFreezeDryerInfo({
+                                machineId: selectedEq.machineId,
+                                machineName: selectedEq.name,
+                                manualEntry: false
+                              });
+                            }
+                          }}
+                          defaultValue=""
+                        >
+                          <option value="">Select freeze dryer...</option>
+                          {activeFreezeDryers.map(eq => (
+                            <option key={eq.id} value={eq.id}>
+                              {eq.name} ({eq.machineId})
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <span style={{color: '#9ca3af', fontSize: '0.9rem'}}>
+                          No freeze dryers available
+                        </span>
+                      )}
                     </div>
                   ) : (
                     <div className="freeze-dryer-selected">

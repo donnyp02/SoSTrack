@@ -30,6 +30,7 @@ import CsvImportPreviewModal from './components/CsvImportPreviewModal';
 import ErrorBoundary from './components/ErrorBoundary';
 import LotTrackingPanel from './components/LotTrackingPanel';
 import IngredientIntakeModal from './components/IngredientIntakeModal';
+import EquipmentManager from './components/EquipmentManager';
 import { FaCog, FaExclamationTriangle } from 'react-icons/fa';
 import { combineFlavorName, stripContainerSuffix, normalizeString } from './utils/containerUtils';
 
@@ -43,6 +44,7 @@ function App() {
   const { data: batches, loading: batchesLoading } = useFirestoreCollection(db, 'batches', !!user);
   const { data: ingredients, loading: ingredientsLoading } = useFirestoreCollection(db, 'ingredients', !!user);
   const { data: ingredientLots, loading: ingredientLotsLoading } = useFirestoreCollection(db, 'ingredientLots', !!user);
+  const { data: equipment, loading: equipmentLoading } = useFirestoreCollection(db, 'equipment', !!user);
 
   // Keep products in state for InventoryProvider (which needs setProducts for optimistic updates)
   const [products, setProducts] = useState({});
@@ -52,7 +54,7 @@ function App() {
     setProducts(firestoreProducts);
   }, [firestoreProducts]);
 
-  const loading = categoriesLoading || productsLoading || batchesLoading || ingredientsLoading || ingredientLotsLoading;
+  const loading = categoriesLoading || productsLoading || batchesLoading || ingredientsLoading || ingredientLotsLoading || equipmentLoading;
 
   const [selectedProductId, setSelectedProductId] = useState(null);
   const [activeModal, setActiveModal] = useState(null);
@@ -1235,7 +1237,7 @@ function App() {
           </div>
         </div>
       )}
-      {activeModal === 'makeRequest' && ( <MakeRequestModal product={selectedProduct} ingredients={ingredients} ingredientLots={ingredientLots} onClose={() => handleOpenModal('manageProduct')} onSubmit={(data) => handleDataUpdate('Make', data)} /> )}
+      {activeModal === 'makeRequest' && ( <MakeRequestModal product={selectedProduct} ingredients={ingredients} ingredientLots={ingredientLots} equipment={equipment} onClose={() => handleOpenModal('manageProduct')} onSubmit={(data) => handleDataUpdate('Make', data)} /> )}
       {activeModal === 'finalCount' && ( <FinalCountModal product={selectedProduct} batch={modalPayload} onClose={() => handleOpenModal('manageProduct')} onSubmit={(data) => { setTempFinalCount(data); handleOpenModal('verify', modalPayload); }} /> )}
       {activeModal === 'verify' && ( <VerificationModal product={selectedProduct} batch={modalPayload} finalCountData={tempFinalCount} onClose={() => handleOpenModal('finalCount', modalPayload)} onVerify={() => handleDataUpdate('Ready', tempFinalCount, modalPayload.id)} /> )}
       {activeModal === 'containers' && ( <CategoryTemplateModal category={selectedCategory} onClose={() => handleOpenModal('manageProduct')} onSave={handleTemplateSave} /> )}
@@ -1277,9 +1279,21 @@ function App() {
             </div>
             <div className="modal-body">
               <WhitelistManager />
+              <div style={{marginTop: '24px', paddingTop: '24px', borderTop: '1px solid #e5e7eb'}}>
+                <button className="btn-primary" onClick={() => setActiveModal('equipmentManager')}>
+                  Manage Equipment
+                </button>
+              </div>
             </div>
           </div>
         </div>
+      )}
+
+      {activeModal === 'equipmentManager' && (
+        <EquipmentManager
+          equipment={equipment}
+          onClose={() => setActiveModal(null)}
+        />
       )}
 
       {activeModal === 'csvImportPreview' && pendingCsvImport && (
