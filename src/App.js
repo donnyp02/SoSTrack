@@ -1,7 +1,7 @@
 ﻿import { useState, useEffect, useMemo } from 'react';
 import './App.css';
 import { db, auth } from './firebase';
-import { collection, addDoc, doc, updateDoc, writeBatch, serverTimestamp } from "firebase/firestore";
+import { collection, addDoc, doc, updateDoc, deleteDoc, writeBatch, serverTimestamp } from "firebase/firestore";
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { useAuth } from './contexts/AuthContext';
@@ -68,6 +68,7 @@ function App() {
   const [selectedIngredientId, setSelectedIngredientId] = useState(null);
   const [intakeIngredientId, setIntakeIngredientId] = useState(null);
   const [isIngredientIntakeOpen, setIsIngredientIntakeOpen] = useState(false);
+  const [editingLotId, setEditingLotId] = useState(null);
   const [darkMode, setDarkMode] = useState(() => {
     const saved = localStorage.getItem('darkMode');
     return saved ? JSON.parse(saved) : false;
@@ -467,6 +468,7 @@ function App() {
   const handleIngredientIntakeClose = () => {
     setIsIngredientIntakeOpen(false);
     setIntakeIngredientId(null);
+    setEditingLotId(null);
   };
 
   const handleIngredientIntakeSubmit = async (payload) => {
@@ -545,13 +547,50 @@ function App() {
         updatedAt: serverTimestamp()
       };
 
-      await addDoc(collection(db, "ingredientLots"), lotData);
+      // Check if we're editing an existing lot or creating a new one
+      if (editingLotId) {
+        // Update existing lot
+        await updateDoc(doc(db, "ingredientLots", editingLotId), {
+          ...lotData,
+          updatedAt: serverTimestamp()
+        });
+        toast.success(`Ingredient lot ${payload.internalLotNumber} updated successfully!`);
+      } else {
+        // Create new lot
+        await addDoc(collection(db, "ingredientLots"), lotData);
+        toast.success(`Ingredient lot ${payload.internalLotNumber} logged successfully!`);
+      }
 
-      toast.success(`Ingredient lot ${payload.internalLotNumber} logged successfully!`);
       handleIngredientIntakeClose();
     } catch (error) {
       console.error('Error saving ingredient intake:', error);
       toast.error(`Failed to save ingredient intake: ${error.message || 'Unknown error'}`);
+    }
+  };
+
+  const handleIngredientLotEdit = (lotId) => {
+    setEditingLotId(lotId);
+    setIsIngredientIntakeOpen(true);
+  };
+
+  const handleIngredientLotDelete = async (lotId) => {
+    const lot = ingredientLots[lotId];
+    const confirmed = await showConfirm({
+      title: 'Delete Ingredient Lot?',
+      message: `Are you sure you want to delete lot ${lot?.internalLotNumber || lotId}? This cannot be undone.`,
+      confirmText: 'Delete',
+      confirmColor: 'red',
+      icon: <FaExclamationTriangle />
+    });
+
+    if (!confirmed) return;
+
+    try {
+      await deleteDoc(doc(db, "ingredientLots", lotId));
+      toast.success('Ingredient lot deleted successfully');
+    } catch (error) {
+      console.error('Error deleting ingredient lot:', error);
+      toast.error(`Failed to delete lot: ${error.message || 'Unknown error'}`);
     }
   };
 
@@ -1127,6 +1166,7 @@ function App() {
                     <span>Status</span>
                     <span>Quantity</span>
                     <span>Storage</span>
+                    <span>Actions</span>
                   </div>
                   <div className="table-body">
                     {visibleIngredientLots.length === 0 ? (
@@ -1156,6 +1196,14 @@ function App() {
                             {lot.amount ? `${lot.amount}${lot.unit ? ` ${lot.unit}` : ''}` : '—'}
                           </span>
                           <span>{lot.storageLocation?.name || lot.storageLocation?.bin || lot.storageLocation || '—'}</span>
+                          <span style={{display: 'flex', gap: '8px'}}>
+                            <button onClick={() => handleIngredientLotEdit(lot.id)}>
+                              Edit
+                            </button>
+                            <button onClick={() => handleIngredientLotDelete(lot.id)}>
+                              Delete
+                            </button>
+                          </span>
                         </div>
                       ))
                     )}
@@ -1174,6 +1222,7 @@ function App() {
           onSubmit={handleIngredientIntakeSubmit}
           ingredients={ingredients}
           defaultIngredientId={intakeIngredientId}
+          editingLot={editingLotId ? ingredientLots[editingLotId] : null}
         />
       )}
 
