@@ -1,4 +1,5 @@
 ﻿import React, { useMemo, useState } from 'react';
+import './AssignProductModal.css';
 
 const AssignProductModal = ({ onClose, products, categories, row, onAssign, onAddNewProduct }) => {
   const [selectedCategoryId, setSelectedCategoryId] = useState('');
@@ -33,13 +34,13 @@ const AssignProductModal = ({ onClose, products, categories, row, onAssign, onAd
           <button onClick={onClose} className="close-button">&times;</button>
         </div>
         <div className="modal-body">
-          <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#dc3545', marginBottom: 8 }}>
+          <div className="assign-product-warning">
             Assign Product: {productName}; {productDescription}
           </div>
 
           <div className="form-group">
             <label>Category</label>
-            <div style={{ display: 'flex', gap: 8 }}>
+            <div className="assign-row">
               <select
                 value={selectedCategoryId}
                 onChange={(e) => {
@@ -47,7 +48,7 @@ const AssignProductModal = ({ onClose, products, categories, row, onAssign, onAd
                   setSelectedProductId('');
                   setSelectedTemplateId('');
                 }}
-                style={{ flex: 1 }}
+                className="assign-select flex-fill"
               >
                 <option value="">Select a Category</option>
                 {categoryList.map(cat => (
@@ -60,7 +61,7 @@ const AssignProductModal = ({ onClose, products, categories, row, onAssign, onAd
           </div>
 
           {selectedCategoryId === '__NEW__' && (
-            <div style={{ margin: '6px 0 12px' }}>
+            <div className="assign-new-alert">
               <button type="button" className="btn-primary" onClick={onAddNewProduct}>Add Product</button>
             </div>
           )}
@@ -72,6 +73,7 @@ const AssignProductModal = ({ onClose, products, categories, row, onAssign, onAd
                 <select
                   value={selectedProductId}
                   onChange={(e) => { setSelectedProductId(e.target.value); setSelectedTemplateId(''); }}
+                  className="assign-select"
                 >
                   <option value="">Select Flavor</option>
                   {productList.map(p => (
@@ -83,7 +85,11 @@ const AssignProductModal = ({ onClose, products, categories, row, onAssign, onAd
               {!!selectedProductId && (
                 <div className="form-group">
                   <label>Container</label>
-                  <select value={selectedTemplateId} onChange={(e) => setSelectedTemplateId(e.target.value)}>
+                  <select
+                    value={selectedTemplateId}
+                    onChange={(e) => setSelectedTemplateId(e.target.value)}
+                    className="assign-select"
+                  >
                     <option value="">Select Container</option>
                     {templates.map(t => (
                       <option key={t.id} value={t.id}>{t.name} {t.weightOz ? `(${t.weightOz}oz)` : ''}</option>

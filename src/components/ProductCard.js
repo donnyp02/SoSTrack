@@ -2,8 +2,15 @@
 import React, { useMemo, memo } from 'react';
 import './ProductCard.css';
 
-const statusColors = { 'Make': '#dc3545', 'Package': '#ffc107', 'Ready': '#28a745', 'Idle': '#6c757d', 'Completed': '#6c757d' };
-const statusGradients = { 'Make': 'linear-gradient(to right, rgba(220, 53, 69, 0.25), transparent 40%)', 'Package': 'linear-gradient(to right, rgba(255, 193, 7, 0.25), transparent 40%)', 'Ready': 'linear-gradient(to right, rgba(40, 167, 69, 0.25), transparent 40%)', 'Idle': 'linear-gradient(to right, rgba(108, 117, 125, 0.15), transparent 40%)', 'Completed': 'linear-gradient(to right, rgba(108, 117, 125, 0.15), transparent 40%)' };
+const statusColors = { 'Requested': '#dc3545', 'Make': '#3b82f6', 'Package': '#ffc107', 'Ready': '#28a745', 'Idle': '#6c757d', 'Completed': '#6c757d' };
+const statusGradients = {
+  'Requested': 'linear-gradient(to right, rgba(220, 53, 69, 0.25), transparent 40%)',
+  'Make': 'linear-gradient(to right, rgba(59, 130, 246, 0.25), transparent 40%)',
+  'Package': 'linear-gradient(to right, rgba(255, 193, 7, 0.25), transparent 40%)',
+  'Ready': 'linear-gradient(to right, rgba(40, 167, 69, 0.25), transparent 40%)',
+  'Idle': 'linear-gradient(to right, rgba(108, 117, 125, 0.15), transparent 40%)',
+  'Completed': 'linear-gradient(to right, rgba(108, 117, 125, 0.15), transparent 40%)'
+};
 
 const ProductCard = memo(({ product, category, onClick }) => {
   const { stripedBarStyle, cardBackgroundStyle, statusBadges } = useMemo(() => {
@@ -22,7 +29,7 @@ const ProductCard = memo(({ product, category, onClick }) => {
       return acc;
     }, {});
 
-    const statusOrder = ['Make', 'Package', 'Ready'];
+    const statusOrder = ['Requested', 'Make', 'Package', 'Ready'];
     activeStatuses.sort((a, b) => statusOrder.indexOf(a) - statusOrder.indexOf(b));
 
     const topStatus = activeStatuses[0] || product.status || 'Idle';

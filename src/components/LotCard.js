@@ -1,6 +1,6 @@
 // src/components/LotCard.js
 import React, { memo } from 'react';
-import { FaCalendarAlt, FaBoxes } from 'react-icons/fa';
+import { FaCalendarAlt, FaBoxes, FaEdit, FaTrash, FaMapMarkerAlt } from 'react-icons/fa';
 import './LotCard.css';
 
 const STATUS_COLORS = {
@@ -14,7 +14,7 @@ const STATUS_COLORS = {
   'On Hold': 'hold'
 };
 
-const LotCard = memo(({ lot, onClick }) => {
+const LotCard = memo(({ lot, onClick, onEdit, onDelete }) => {
   const statusClass = STATUS_COLORS[lot.status] || 'pending';
 
   // Check if expiring soon (within 7 days)
@@ -35,6 +35,9 @@ const LotCard = memo(({ lot, onClick }) => {
     if (!date) return '—';
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   };
+
+  // Get last location from movements
+  const currentLocation = lot.currentLocation || lot.primaryLocation || lot.locations?.[0]?.name || 'Unknown';
 
   return (
     <div className="lot-card" onClick={onClick}>
@@ -59,8 +62,16 @@ const LotCard = memo(({ lot, onClick }) => {
                 {lot.amount} {lot.unit || ''}
               </span>
             )}
-            {lot.primaryLocation && <span>{lot.primaryLocation}</span>}
-            {lot.storageLocation && <span>{lot.storageLocation.area || lot.storageLocation.bin || lot.storageLocation}</span>}
+            {currentLocation && (
+              <span title="Current location">
+                <FaMapMarkerAlt /> {currentLocation}
+              </span>
+            )}
+            {lot.storageLocation && (
+              <span>
+                {lot.storageLocation.area || lot.storageLocation.bin || lot.storageLocation}
+              </span>
+            )}
           </div>
         </div>
         <div className="lot-card-status">
@@ -68,6 +79,36 @@ const LotCard = memo(({ lot, onClick }) => {
             <FaCalendarAlt style={{ marginRight: '6px', fontSize: '0.9em' }} />
             {formatDate(saleBy)}
           </div>
+          {(onEdit || onDelete) && (
+            <div className="lot-card-actions">
+              {onEdit && (
+                <button
+                  className="lot-card-action-btn edit"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onEdit(lot);
+                  }}
+                  title="Edit lot"
+                  aria-label="Edit lot"
+                >
+                  <FaEdit />
+                </button>
+              )}
+              {onDelete && (
+                <button
+                  className="lot-card-action-btn delete"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete(lot.id);
+                  }}
+                  title="Delete lot"
+                  aria-label="Delete lot"
+                >
+                  <FaTrash />
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -75,3 +116,4 @@ const LotCard = memo(({ lot, onClick }) => {
 });
 
 export default LotCard;
+

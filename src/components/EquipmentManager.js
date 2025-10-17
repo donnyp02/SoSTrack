@@ -2,12 +2,13 @@ import React, { useState, useMemo } from 'react';
 import { collection, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 import { toast } from 'react-toastify';
-import { FaPlus, FaEdit, FaTrash, FaQrcode, FaTimes } from 'react-icons/fa';
+import { FaPlus, FaEdit, FaTrash, FaQrcode, FaTimes, FaExclamationTriangle } from 'react-icons/fa';
 import { useConfirm } from '../hooks/useConfirm';
 import './EquipmentManager.css';
 
 const EQUIPMENT_TYPES = [
   { value: 'freezeDryer', label: 'Freeze Dryer' },
+  { value: 'vacuumOven', label: 'Vacuum Oven' },
   { value: 'scale', label: 'Scale' },
   { value: 'mixer', label: 'Mixer' },
   { value: 'packaging', label: 'Packaging Station' },

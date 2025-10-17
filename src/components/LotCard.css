@@ -81,7 +81,72 @@
   display: flex;
   flex-direction: column;
   align-items: flex-end;
+  gap: 8px;
+}
+
+.lot-card-actions {
+  display: flex;
   gap: 6px;
+  margin-top: 2px;
+}
+
+.lot-card-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 8px;
+  background: rgba(148, 163, 184, 0.12);
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  font-size: 0.9em;
+}
+
+.lot-card-action-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.lot-card-action-btn.edit {
+  color: #4f46e5;
+}
+
+.lot-card-action-btn.edit:hover {
+  background: rgba(79, 70, 229, 0.15);
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);
+}
+
+.lot-card-action-btn.delete {
+  color: #dc2626;
+}
+
+.lot-card-action-btn.delete:hover {
+  background: rgba(220, 38, 38, 0.15);
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.25);
+}
+
+.dark-mode .lot-card-action-btn {
+  background: rgba(71, 85, 105, 0.35);
+  color: #cbd5e1;
+}
+
+.dark-mode .lot-card-action-btn.edit {
+  color: #a5b4fc;
+}
+
+.dark-mode .lot-card-action-btn.edit:hover {
+  background: rgba(99, 102, 241, 0.25);
+}
+
+.dark-mode .lot-card-action-btn.delete {
+  color: #fca5a5;
+}
+
+.dark-mode .lot-card-action-btn.delete:hover {
+  background: rgba(220, 38, 38, 0.25);
 }
 
 .lot-card-date {

@@ -1,1 +1,42 @@
-/* AssignProductModal.css */
+/* AssignProductModal specific styling */
+.assign-product-warning {
+	font-size: 0.9rem;
+	font-weight: 700;
+	color: #dc3545;
+	margin-bottom: 8px;
+}
+
+.assign-row {
+	display: flex;
+	gap: 8px;
+	flex-wrap: wrap;
+	align-items: center;
+}
+
+.assign-row .flex-fill {
+	flex: 1;
+	min-width: 200px;
+}
+
+.assign-select {
+	width: 100%;
+}
+
+.assign-new-alert {
+	margin: 6px 0 12px;
+}
+
+body.dark-mode .assign-product-warning {
+	color: #fca5a5;
+}
+
+body.dark-mode .assign-select {
+	background-color: #111827;
+	color: #e5e7eb;
+	border-color: #334155;
+}
+
+body.dark-mode .assign-select:focus {
+	border-color: #60a5fa;
+	box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.25);
+}

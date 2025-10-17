@@ -15,7 +15,7 @@ const formatWeight = (ounces) => {
   return `${lbs} lbs ${oz} oz`;
 };
 
-const ManagementModal = ({ product, category, onUpdate, onDeleteBatches, onClose, onOpenModal }) => {
+const ManagementModal = ({ product, category, recipe, onUpdate, onDeleteBatches, onClose, onOpenModal }) => {
   const { showConfirm, ConfirmDialog } = useConfirm();
   const [showCompleted, setShowCompleted] = useState(false);
   const [selectedBatches, setSelectedBatches] = useState(new Set());
@@ -40,7 +40,34 @@ const ManagementModal = ({ product, category, onUpdate, onDeleteBatches, onClose
     [product?.packageOptions]
   );
 
-  const canPackage = useMemo(() => Array.from(selectedBatches).every(id => activeBatches.find(b => b.id === id)?.status === 'Make'), [selectedBatches, activeBatches]);
+  const recipeSummary = useMemo(() => {
+    if (!recipe?.ingredients || recipe.ingredients.length === 0) return [];
+    return recipe.ingredients.map((item) => {
+      if (item.trackingType === 'count') {
+        return `${item.ingredientName || 'Ingredient'}: ${Math.round(item.requiredAmount || 0)} count`;
+      }
+      const totalOunces = Math.round((item.requiredAmount || 0) * 16);
+      return `${item.ingredientName || 'Ingredient'}: ${formatWeight(totalOunces)}`;
+    });
+  }, [recipe]);
+
+  const canStart = useMemo(
+    () =>
+      selectedBatches.size > 0 &&
+      Array.from(selectedBatches).every(
+        (id) => activeBatches.find((b) => b.id === id)?.status === 'Requested'
+      ),
+    [selectedBatches, activeBatches]
+  );
+
+  const canPackage = useMemo(
+    () =>
+      selectedBatches.size > 0 &&
+      Array.from(selectedBatches).every(
+        (id) => activeBatches.find((b) => b.id === id)?.status === 'Make'
+      ),
+    [selectedBatches, activeBatches]
+  );
   
   const canFinalize = useMemo(() => {
     if (selectedBatches.size !== 1) return false;
@@ -65,6 +92,14 @@ const ManagementModal = ({ product, category, onUpdate, onDeleteBatches, onClose
 
   const resolvedUnits = onHandUnits < 0 ? 0 : onHandUnits;
   const onHandLabel = `${resolvedUnits}`;
+
+  const handleStart = () => {
+    // Open the MakeRequestModal to allow ingredient lot selection and machine assignment
+    // Pass the selected batch so the modal can access its weight
+    const selectedId = selectedBatches.values().next().value;
+    const selectedBatch = activeBatches.find(b => b.id === selectedId);
+    onOpenModal('makeStart', selectedBatch);
+  };
 
   const handlePackage = async () => {
     if (isProcessing) return;
@@ -211,11 +246,34 @@ const ManagementModal = ({ product, category, onUpdate, onDeleteBatches, onClose
         </div>
         <div className="modal-body">
           <div className="top-status-bar">
-            <button className="status-btn red" onClick={() => onOpenModal('makeRequest')} disabled={isProcessing}>New Production Run</button>
-            <button className="status-btn yellow" onClick={handlePackage} disabled={selectedBatches.size === 0 || !canPackage || isProcessing}>
-              {isProcessing ? 'Processing...' : 'Ready for Packaging'}
+            <button
+              className="status-btn red"
+              onClick={() => onOpenModal('makeRequest')}
+              disabled={isProcessing}
+            >
+              Request
             </button>
-            <button className="status-btn green" onClick={handleFinalize} disabled={!canFinalize || isProcessing}>Finalize Production</button>
+            <button
+              className="status-btn blue"
+              onClick={handleStart}
+              disabled={isProcessing}
+            >
+              Start
+            </button>
+            <button
+              className="status-btn yellow"
+              onClick={handlePackage}
+              disabled={selectedBatches.size === 0 || !canPackage || isProcessing}
+            >
+              {isProcessing ? 'Processing...' : 'Package'}
+            </button>
+            <button
+              className="status-btn green"
+              onClick={handleFinalize}
+              disabled={!canFinalize || isProcessing}
+            >
+              Finalize
+            </button>
           </div>
           <div className="dashboard-content">
             <div className="info-section left">
@@ -234,6 +292,14 @@ const ManagementModal = ({ product, category, onUpdate, onDeleteBatches, onClose
                     </li>
                   )
                 ) : (<li>No container templates.</li>)}
+              </ul>
+              <h4>Recipe <button className="icon-btn" onClick={() => onOpenModal('editRecipe')}><FiEdit /></button></h4>
+              <ul className="recipe-list">
+                {recipeSummary.length > 0 ? (
+                  recipeSummary.map((line, idx) => <li key={idx}>{line}</li>)
+                ) : (
+                  <li>No recipe defined yet.</li>
+                )}
               </ul>
             </div>
             <div className="info-section right">

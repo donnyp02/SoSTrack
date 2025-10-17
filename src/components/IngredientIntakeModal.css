@@ -228,6 +228,12 @@
   font-size: 0.95rem;
 }
 
+.field-hint {
+  font-weight: 400;
+  font-size: 0.85rem;
+  color: var(--muted-foreground, #6b7280);
+}
+
 .form-fields input,
 .form-fields select,
 .form-fields textarea {
@@ -247,9 +253,118 @@
   color: #e5e7eb;
 }
 
+.dark-mode .field-hint {
+  color: #cbd5f5;
+}
+
 .inline-inputs {
   display: flex;
   gap: 8px;
+}
+
+.package-mode-toggle {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin: 12px 0 16px;
+}
+
+.package-mode-toggle label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.package-mode-toggle input[type="radio"] {
+  accent-color: #4f46e5;
+}
+
+.package-calculator {
+  margin-top: 20px;
+  padding: 16px;
+  border: 1px dashed var(--border-subtle, #c7d2fe);
+  border-radius: 14px;
+  background: rgba(79, 70, 229, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.package-calculator label {
+  font-weight: 600;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.package-calculator select {
+  border-radius: 10px;
+  border: 1px solid var(--border-subtle, #d1d5db);
+  padding: 10px 12px;
+  font-size: 0.95rem;
+}
+
+.package-calculator-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.package-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  border-radius: 10px;
+  background: rgba(79, 70, 229, 0.1);
+  font-weight: 600;
+}
+
+.package-summary span {
+  font-weight: 500;
+}
+
+.package-calculator .inline-toggle {
+  margin-top: 4px;
+  font-weight: 500;
+}
+
+.package-calculator .inline-toggle input[type="checkbox"] {
+  accent-color: #4f46e5;
+}
+
+.package-calculator .inline-inputs input[type="text"] {
+  min-width: 70px;
+}
+
+.package-calculator .inline-inputs input[type="number"] {
+  min-width: 90px;
+}
+
+.package-calculator-grid label {
+  font-weight: 600;
+}
+
+.dark-mode .package-calculator {
+  border-color: rgba(99, 102, 241, 0.6);
+  background: rgba(79, 70, 229, 0.16);
+}
+
+.dark-mode .package-calculator select {
+  background: #111827;
+  border-color: #1f2937;
+  color: #e5e7eb;
+}
+
+.dark-mode .package-mode-toggle input[type="radio"],
+.dark-mode .package-calculator .inline-toggle input[type="checkbox"] {
+  accent-color: #818cf8;
+}
+
+.dark-mode .package-summary {
+  background: rgba(129, 140, 248, 0.2);
 }
 
 .checkbox-grid {

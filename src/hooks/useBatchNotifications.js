@@ -40,6 +40,8 @@ export function useBatchNotifications(
           setNotification(`${productName} is ready for shipping!`);
         } else if (newStatus === 'Make' && activeTab === 'Production') {
           setNotification(`New production run started for ${productName}!`);
+        } else if (newStatus === 'Requested' && activeTab === 'Production') {
+          setNotification(`New production request for ${productName}!`);
         }
       }
 

@@ -46,6 +46,8 @@
 .status-btn:not(:disabled):active {
   transform: translateY(0);
 }
+.status-btn.blue { background-color: #3b82f6; color: white; }
+.status-btn.blue:not(:disabled):hover { background-color: #2563eb; }
 .status-btn.grey { background-color: #f0f0f0; color: #555; }
 .status-btn.grey:not(:disabled):hover { border-color: #ccc; }
 .status-btn.red { background-color: #dc3545; color: white; }
@@ -74,6 +76,22 @@
   color: #212529;
   font-weight: 600;
   font-size: 0.95em;
+}
+
+.recipe-list { list-style: none; padding: 0; margin: 0; }
+.recipe-list li {
+  background-color: #f3f4f6;
+  padding: 6px 10px;
+  border-radius: 4px;
+  margin-bottom: 4px;
+  font-size: 0.9em;
+  color: #1f2937;
+}
+
+body.dark-mode .recipe-list li {
+  background-color: #111827;
+  color: #e2e8f0;
+  border: 1px solid #374151;
 }
 
 .icon-btn {
@@ -142,7 +160,8 @@
   margin-right: 8px;
   flex-shrink: 0;
 }
-.status-make { background-color: #dc3545; }
+.status-make { background-color: #3b82f6; }
+.status-requested { background-color: #dc3545; }
 .status-package { background-color: #ffc107; color: #333; }
 .status-ready { background-color: #28a745; }
 .status-completed { background-color: #6c757d; }
@@ -245,6 +264,14 @@ body.dark-mode .status-btn.grey {
   background-color: #1f2937;
   color: #e2e8f0;
   border-color: #334155;
+}
+
+body.dark-mode .status-btn.blue {
+  background-color: #2563eb;
+}
+
+body.dark-mode .status-btn.blue:not(:disabled):hover {
+  background-color: #1d4ed8;
 }
 
 body.dark-mode .inventory-stats {
