@@ -11,3 +11,37 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
 }
+
+/* Global input styling - success state */
+body:not(.dark-mode) input[type="number"]:valid:not(:placeholder-shown),
+body:not(.dark-mode) input[type="text"]:valid:not(:placeholder-shown),
+body:not(.dark-mode) input[type="email"]:valid:not(:placeholder-shown),
+body:not(.dark-mode) textarea:valid:not(:placeholder-shown) {
+  border-color: #22c55e !important;
+  background-color: #f0fdf4 !important;
+}
+
+body:not(.dark-mode) input[type="number"]:valid:not(:placeholder-shown):focus,
+body:not(.dark-mode) input[type="text"]:valid:not(:placeholder-shown):focus,
+body:not(.dark-mode) input[type="email"]:valid:not(:placeholder-shown):focus,
+body:not(.dark-mode) textarea:valid:not(:placeholder-shown):focus {
+  border-color: #22c55e !important;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.1) !important;
+}
+
+body.dark-mode input[type="number"]:valid:not(:placeholder-shown),
+body.dark-mode input[type="text"]:valid:not(:placeholder-shown),
+body.dark-mode input[type="email"]:valid:not(:placeholder-shown),
+body.dark-mode textarea:valid:not(:placeholder-shown) {
+  border-color: #22c55e !important;
+  background-color: inherit !important;
+  color: #e5e7eb !important;
+}
+
+body.dark-mode input[type="number"]:valid:not(:placeholder-shown):focus,
+body.dark-mode input[type="text"]:valid:not(:placeholder-shown):focus,
+body.dark-mode input[type="email"]:valid:not(:placeholder-shown):focus,
+body.dark-mode textarea:valid:not(:placeholder-shown):focus {
+  border-color: #22c55e !important;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.2) !important;
+}

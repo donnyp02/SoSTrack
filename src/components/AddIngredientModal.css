@@ -1,0 +1,243 @@
+.add-ingredient-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.add-ingredient-modal {
+  background: #ffffff;
+  color: #1f2937;
+  width: 520px;
+  max-width: calc(100vw - 32px);
+  border-radius: 16px;
+  box-shadow: 0 30px 60px rgba(15, 23, 42, 0.28);
+  overflow: hidden;
+}
+
+.add-ingredient-modal .close-button {
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  border-radius: 6px;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.add-ingredient-modal .close-button:hover {
+  background: rgba(15, 23, 42, 0.08);
+  color: #475569;
+}
+
+.add-ingredient-modal .close-button:disabled,
+.add-ingredient-modal .close-button:disabled:hover {
+  cursor: default;
+  background: transparent;
+  color: #cbd5f5;
+}
+
+.add-ingredient-modal .modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.add-ingredient-modal .modal-header h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.add-ingredient-form .modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 20px 24px;
+}
+
+.add-ingredient-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.add-ingredient-form label .field-hint {
+  font-weight: 400;
+  color: #6b7280;
+  line-height: 1.4;
+}
+
+.add-ingredient-form label span,
+.add-ingredient-form legend {
+  font-size: 0.95rem;
+}
+
+.add-ingredient-form input[type="text"],
+.add-ingredient-form textarea {
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 0.95rem;
+  background: #ffffff;
+  color: #111827;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.add-ingredient-form input[type="text"]:focus,
+.add-ingredient-form textarea:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.add-ingredient-form textarea {
+  resize: vertical;
+  min-height: 72px;
+}
+
+.tracking-type-fieldset {
+  border: 1px solid #d1d5db;
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+
+.tracking-type-fieldset legend {
+  font-weight: 600;
+  padding: 0 6px;
+}
+
+.tracking-type-options {
+  display: grid;
+  gap: 10px;
+}
+
+.tracking-type-options label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 500;
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.tracking-type-options label.selected {
+  border-color: #2563eb;
+  background: rgba(37, 99, 235, 0.08);
+}
+
+.tracking-type-options input[type="radio"] {
+  accent-color: #2563eb;
+}
+
+.inline-toggle {
+  flex-direction: row;
+  align-items: center;
+  font-weight: 500;
+  gap: 10px;
+}
+
+.inline-toggle input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: #2563eb;
+}
+
+.form-error {
+  color: #b91c1c;
+  font-weight: 600;
+  margin: 0;
+}
+
+.add-ingredient-modal .modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 16px 24px;
+  background: #f8fafc;
+  border-top: 1px solid #e5e7eb;
+}
+
+.add-ingredient-modal .btn-primary,
+.add-ingredient-modal .btn-secondary {
+  min-width: 140px;
+}
+
+body.dark-mode .add-ingredient-modal {
+  background: #141a25;
+  color: #f8fafc;
+  box-shadow: 0 30px 60px rgba(2, 6, 23, 0.65);
+}
+
+body.dark-mode .add-ingredient-modal .close-button {
+  color: #94a3b8;
+}
+
+body.dark-mode .add-ingredient-modal .close-button:hover {
+  background: rgba(148, 163, 184, 0.12);
+  color: #e2e8f0;
+}
+
+body.dark-mode .add-ingredient-modal .modal-header,
+body.dark-mode .add-ingredient-modal .modal-footer {
+  border-color: #1f2937;
+}
+
+body.dark-mode .add-ingredient-modal .modal-footer {
+  background: #0f1722;
+}
+
+body.dark-mode .add-ingredient-form label,
+body.dark-mode .tracking-type-fieldset legend {
+  color: #f8fafc;
+}
+
+body.dark-mode .add-ingredient-form label .field-hint {
+  color: #cbd5f5;
+}
+
+body.dark-mode .add-ingredient-form input[type="text"],
+body.dark-mode .add-ingredient-form textarea {
+  background: #1a2332;
+  border-color: #2f3b52;
+  color: #f8fafc;
+}
+
+body.dark-mode .add-ingredient-form input[type="text"]:focus,
+body.dark-mode .add-ingredient-form textarea:focus {
+  border-color: #4c6ef5;
+  box-shadow: 0 0 0 3px rgba(76, 110, 245, 0.2);
+}
+
+body.dark-mode .tracking-type-fieldset {
+  border-color: #2f3b52;
+}
+
+body.dark-mode .tracking-type-options label {
+  border-color: #2f3b52;
+  background: #131b27;
+}
+
+body.dark-mode .tracking-type-options label.selected {
+  border-color: #4c6ef5;
+  background: rgba(76, 110, 245, 0.12);
+}
+
+body.dark-mode .form-error {
+  color: #fca5a5;
+}

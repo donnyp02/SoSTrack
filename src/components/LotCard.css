@@ -1,0 +1,239 @@
+/* src/components/LotCard.css */
+.lot-card {
+  background: rgba(255, 255, 255, 0.92);
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.08);
+  margin-bottom: 12px;
+  padding: 14px 18px;
+  cursor: pointer;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+  position: relative;
+  overflow: hidden;
+  backdrop-filter: blur(12px);
+}
+
+.lot-card:hover {
+  transform: translateY(-3px) scale(1.01);
+  box-shadow: 0 18px 38px rgba(15, 23, 42, 0.16);
+  border-color: rgba(59, 130, 246, 0.35);
+}
+
+.lot-card-striped-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 4px;
+  z-index: 1;
+}
+
+.lot-card-content {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
+.lot-card-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.lot-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.lot-card-number {
+  margin: 0;
+  font-size: 1.05em;
+  color: #1f2937;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.lot-card-product {
+  font-size: 0.9em;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.lot-card-meta {
+  display: flex;
+  gap: 12px;
+  font-size: 0.85em;
+  color: #64748b;
+}
+
+.lot-card-meta span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.lot-card-status {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.lot-card-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.lot-card-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 8px;
+  background: rgba(148, 163, 184, 0.12);
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  font-size: 0.9em;
+}
+
+.lot-card-action-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.lot-card-action-btn.edit {
+  color: #4f46e5;
+}
+
+.lot-card-action-btn.edit:hover {
+  background: rgba(79, 70, 229, 0.15);
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);
+}
+
+.lot-card-action-btn.delete {
+  color: #dc2626;
+}
+
+.lot-card-action-btn.delete:hover {
+  background: rgba(220, 38, 38, 0.15);
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.25);
+}
+
+.dark-mode .lot-card-action-btn {
+  background: rgba(71, 85, 105, 0.35);
+  color: #cbd5e1;
+}
+
+.dark-mode .lot-card-action-btn.edit {
+  color: #a5b4fc;
+}
+
+.dark-mode .lot-card-action-btn.edit:hover {
+  background: rgba(99, 102, 241, 0.25);
+}
+
+.dark-mode .lot-card-action-btn.delete {
+  color: #fca5a5;
+}
+
+.dark-mode .lot-card-action-btn.delete:hover {
+  background: rgba(220, 38, 38, 0.25);
+}
+
+.lot-card-date {
+  position: relative;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 14px;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 0.9em;
+  color: #0f172a;
+  background: linear-gradient(135deg, rgba(226, 232, 240, 0.95), rgba(148, 163, 184, 0.72));
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7), 0 6px 18px rgba(15, 23, 42, 0.12);
+  backdrop-filter: blur(10px);
+}
+
+.lot-card-date.expiring-soon {
+  background: linear-gradient(135deg, rgba(251, 191, 36, 0.2), rgba(245, 158, 11, 0.15));
+  border-color: rgba(245, 158, 11, 0.4);
+  color: #92400e;
+}
+
+.lot-card-date.expired {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(220, 38, 38, 0.15));
+  border-color: rgba(220, 38, 38, 0.4);
+  color: #991b1b;
+}
+
+/* Status colors for striped bar */
+.lot-card-striped-bar.ready {
+  background: #28a745;
+}
+
+.lot-card-striped-bar.hold {
+  background: #6366f1;
+}
+
+.lot-card-striped-bar.consumed {
+  background: #6b7280;
+}
+
+.lot-card-striped-bar.recalled {
+  background: #ef4444;
+}
+
+.lot-card-striped-bar.pending {
+  background: #fbbf24;
+}
+
+/* Dark mode support */
+.dark-mode .lot-card {
+  background: rgba(30, 41, 59, 0.95);
+  border-color: rgba(71, 85, 105, 0.4);
+}
+
+.dark-mode .lot-card-number {
+  color: #f1f5f9;
+}
+
+.dark-mode .lot-card-product,
+.dark-mode .lot-card-meta {
+  color: #94a3b8;
+}
+
+.dark-mode .lot-card-date {
+  background: linear-gradient(135deg, rgba(51, 65, 85, 0.95), rgba(71, 85, 105, 0.72));
+  border-color: rgba(71, 85, 105, 0.5);
+  color: #e2e8f0;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 767px) {
+  .lot-card {
+    padding: 12px 14px;
+  }
+
+  .lot-card-content {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .lot-card-status {
+    align-self: flex-end;
+    align-items: flex-end;
+  }
+}

@@ -1,178 +1,1055 @@
 /* src/components/MakeRequestModal.css */
 .small-modal {
-    max-width: 450px;
-  }
+  max-width: 650px;
+  max-height: 90vh;
+}
 
-  .package-inputs {
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
-    margin-bottom: 20px;
-  }
+.modal-body {
+  max-height: calc(90vh - 140px);
+  overflow-y: auto;
+  padding-right: 10px;
+}
 
-  .package-input-group {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
+.modal-title-block {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
 
-  .package-input-group label {
-    font-weight: bold;
-    color: #555;
-    font-size: 1.05em;
-  }
+.modal-title-block h3 {
+  margin: 0;
+}
 
-  .package-input-group input {
-    width: 120px;
-    padding: 12px 14px;
-    font-size: 1.1em;
-    text-align: right;
-    border: 2px solid #ccc;
-    border-radius: 8px;
-    transition: all 0.2s ease;
-    min-height: 48px;
-  }
+.production-product-name {
+  margin: 0;
+  font-size: 0.95rem;
+  color: #64748b;
+  font-weight: 500;
+}
 
-  .package-input-group input:hover {
-    border-color: #999;
-  }
+/* Production Lot Number */
+.lot-number-display {
+  margin-bottom: 20px;
+}
 
-  .package-input-group input:focus {
-    outline: none;
-    border-color: #007bff;
-    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
-  }
+.lot-number-display label {
+  display: block;
+  font-weight: 600;
+  color: #374151;
+  font-size: 0.95rem;
+}
 
-  .weight-display {
-    background-color: #f8f9fa;
-    border: 2px solid #e9ecef;
-    border-radius: 12px;
-    padding: 20px;
-    text-align: center;
-    margin-bottom: 25px;
-  }
+/* Machines Section - For Start Mode */
+.machines-section {
+  margin-bottom: 20px;
+}
 
-  .weight-display h4 {
-    margin: 0 0 8px 0;
-    color: #333;
-    font-size: 1.1em;
-  }
+.btn-add-machine {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: #2563eb;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
 
-  .weight-display span {
-    font-size: 2.2em;
-    font-weight: bold;
-    color: #007bff;
-  }
+.btn-add-machine:hover {
+  background: #1d4ed8;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+}
 
-  .form-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 12px;
-  }
+.machine-card {
+  border: 2px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 14px;
+  margin-bottom: 14px;
+  background: #f9fafb;
+}
 
-  .form-actions button {
-    padding: 14px 28px;
-    font-size: 1em;
-    font-weight: 600;
-    border-radius: 8px;
-    border: none;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    min-height: 52px;
-  }
+.machine-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
 
-  .form-actions button:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
-  }
+.machine-header strong {
+  color: #374151;
+  font-size: 0.95rem;
+}
 
-  .form-actions button:active {
-    transform: translateY(0);
-  }
+.btn-remove-machine {
+  background: none;
+  border: none;
+  color: #dc2626;
+  cursor: pointer;
+  padding: 4px;
+  font-size: 1.1rem;
+  transition: all 0.2s ease;
+}
 
-  .btn-cancel {
-    background-color: #6c757d;
-    color: white;
-  }
+.btn-remove-machine:hover {
+  color: #b91c1c;
+  transform: scale(1.1);
+}
 
-  .btn-cancel:hover {
-    background-color: #5a6268;
-  }
+.machine-selector {
+  width: 100%;
+  padding: 10px 14px;
+  border: 2px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  transition: all 0.2s ease;
+  margin-bottom: 12px;
+}
 
-  .btn-submit {
-    background-color: #28a745;
-    color: white;
-  }
+.machine-selector:focus {
+  outline: none;
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
 
-  .btn-submit:hover {
-    background-color: #218838;
-  }
+.machine-ingredients {
+  margin-top: 10px;
+  padding: 6px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+}
 
-  /* Tablet optimizations */
-  @media (min-width: 768px) and (max-width: 1024px) {
-    .small-modal {
-      max-width: 550px;
-    }
+.ingredient-item {
+  margin-bottom: 6px;
+  padding: 6px;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+}
 
-    .package-input-group label {
-      font-size: 1.2em;
-    }
+.ingredient-item:last-child {
+  margin-bottom: 0;
+}
 
-    .package-input-group input {
-      width: 140px;
-      padding: 14px 16px;
-      font-size: 1.3em;
-      min-height: 56px;
-    }
+.ingredient-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
 
-    .weight-display {
-      padding: 24px;
-    }
+.ingredient-lot-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
 
-    .weight-display h4 {
-      font-size: 1.3em;
-      margin-bottom: 10px;
-    }
+.ingredient-lot-row .lot-selector {
+  flex: 2;
+  min-width: 200px;
+}
 
-    .weight-display span {
-      font-size: 2.6em;
-    }
+.weight-input-stack {
+  display: flex;
+  flex: 1;
+  min-width: 160px;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: nowrap;
+}
 
-    .form-actions button {
-      padding: 16px 32px;
-      font-size: 1.1em;
-      min-height: 60px;
-    }
-  }
+.weight-input-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.weight-input-group input {
+  width: 44px !important;
+  max-width: 44px;
+  padding: 4px 4px !important;
+}
+
+.weight-input-group span,
+.unit-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #6b7280;
+  white-space: nowrap;
+}
+
+.unit-label {
+  margin-left: 2px;
+}
+
+.lot-selector {
+  flex: 2;
+  min-width: 200px;
+  padding: 6px 8px;
+  border: 2px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+.lot-selector:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.lot-selector.complete {
+  border-color: #22c55e;
+  background-color: #f0fdf4;
+}
+
+.lot-number-input {
+  border: 2px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  padding: 4px 4px;
+  text-align: center;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+  width: 44px;
+  max-width: 44px;
+  background-color: white;
+  color: #111827;
+}
+
+.lot-number-input:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.lot-number-input.complete {
+  border-color: #22c55e;
+  background-color: #f0fdf4;
+}
+
+.lot-number-input:disabled {
+  background-color: #f3f4f6;
+  border-color: #d1d5db;
+  color: #9ca3af;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.count-input-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 120px;
+}
+
+.count-input-group .lot-number-input {
+  width: 56px;
+  max-width: 88px;
+}
+
+.ingredient-lot-input {
+  margin-bottom: 10px;
+}
+
+.ingredient-lot-input label {
+  display: block;
+  font-weight: 600;
+  color: #555;
+  font-size: 0.85rem;
+  margin-bottom: 6px;
+}
+
+.ingredient-lot-input select {
+  padding: 8px 12px;
+  border: 2px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+}
+
+.ingredient-lot-input select:focus {
+  outline: none;
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+/* Freeze Dryer Section */
+.freeze-dryer-section {
+  margin-bottom: 24px;
+}
+
+.freeze-dryer-section label {
+  display: block;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 8px;
+  font-size: 0.95rem;
+}
+
+.scanner-buttons {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.btn-scan-qr {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  background: #4f46e5;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.95rem;
+}
+
+.btn-scan-qr:hover {
+  background: #4338ca;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.4);
+}
+
+.manual-entry-input {
+  flex: 1;
+  padding: 10px 14px;
+  border: 2px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  transition: all 0.2s ease;
+}
+
+.manual-entry-input:focus {
+  outline: none;
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+.freeze-dryer-selected {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: rgba(34, 197, 94, 0.1);
+  border: 2px solid rgba(34, 197, 94, 0.3);
+  border-radius: 10px;
+}
+
+.machine-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.machine-info strong {
+  color: #16a34a;
+  font-size: 1rem;
+}
+
+.machine-info small {
+  color: #6b7280;
+  font-size: 0.85rem;
+}
+
+.btn-clear {
+  background: none;
+  border: none;
+  color: #dc2626;
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.btn-clear:hover {
+  background: rgba(220, 38, 38, 0.1);
+}
+
+/* Package Section */
+.package-section {
+  margin-bottom: 16px;
+}
+
+.package-section > label {
+  display: block;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 4px;
+  font-size: 0.9rem;
+}
+
+.package-inputs {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
+  background-color: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.package-input-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.package-input-group label {
+  font-weight: bold;
+  color: #555;
+  font-size: 0.95em;
+  min-width: 100px;
+}
+
+.package-input-group input {
+  width: 72px !important;
+  padding: 4px 4px !important;
+  font-size: 0.85rem !important;
+  text-align: center !important;
+  border: 2px solid #d1d5db !important;
+  border-radius: 4px !important;
+  box-sizing: border-box !important;
+  transition: all 0.2s ease !important;
+  min-height: 32px !important;
+  background-color: white !important;
+  color: #111827 !important;
+}
+
+.package-input-group input:hover {
+  border-color: #9ca3af;
+}
+
+.package-input-group input:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+/* Green highlight for valid input */
+.package-input-group input:valid:not(:placeholder-shown) {
+  border-color: #22c55e;
+  background-color: #f0fdf4 !important;
+}
+
+.package-input-group input:valid:not(:placeholder-shown):focus {
+  border-color: #22c55e;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.1);
+}
+
+/* Bulk Qty section styling */
+.bulk-qty-section {
+  background-color: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 16px;
+}
+
+.bulk-qty-inputs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.bulk-qty-header {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.bulk-qty-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin: 0;
+  white-space: nowrap;
+  color: #374151;
+}
+
+.bulk-qty-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.bulk-qty-group span {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #6b7280;
+  min-width: 20px;
+  text-align: left;
+}
+
+.bulk-qty-inputs input {
+  border: 2px solid #d1d5db;
+  transition: all 0.2s ease;
+  padding: 4px 4px !important;
+  font-size: 0.85rem !important;
+  text-align: right !important;
+  box-sizing: border-box !important;
+  border-radius: 4px !important;
+  min-height: 32px !important;
+  background-color: white !important;
+  color: #111827 !important;
+  width: 72px !important;
+  max-width: 72px;
+}
+
+.bulk-qty-inputs input:hover {
+  border-color: #9ca3af;
+}
+
+.bulk-qty-inputs input:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+/* Green highlight for valid bulk input */
+.bulk-qty-inputs input:valid:not(:placeholder-shown) {
+  border-color: #22c55e;
+  background-color: #f0fdf4 !important;
+}
+
+.bulk-qty-inputs input:valid:not(:placeholder-shown):focus {
+  border-color: #22c55e;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.1);
+}
+
+.weight-display {
+  background-color: #f0f9ff;
+  border: 2px solid #93c5fd;
+  border-radius: 8px;
+  padding: 14px 16px;
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+.weight-display h4 {
+  margin: 0 0 6px 0;
+  color: #1e40af;
+  font-size: 0.9em;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.weight-display span {
+  font-size: 1.6em;
+  font-weight: bold;
+  color: #1e40af;
+  display: block;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.form-actions button {
+  padding: 12px 24px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-height: 48px;
+  flex: 1;
+  max-width: 200px;
+}
+
+.form-actions button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.form-actions button:active {
+  transform: translateY(0);
+}
+
+.btn-cancel {
+  background-color: #6c757d;
+  color: white;
+}
+
+.btn-cancel:hover {
+  background-color: #5a6268;
+}
+
+.btn-submit {
+  background-color: #22c55e;
+  color: white;
+  box-shadow: 0 2px 8px rgba(34, 197, 94, 0.2);
+}
+
+.btn-submit:hover {
+  background-color: #16a34a;
+  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
+}
+
+/* Dark mode styles for machines */
+body.dark-mode .machine-card {
+  background: #111827;
+  border-color: #374151;
+}
+
+body.dark-mode .machine-header strong {
+  color: #e2e8f0;
+}
+
+body.dark-mode .machine-selector,
+body.dark-mode .ingredient-lot-input select {
+  background: #1f2937;
+  color: #e5e7eb;
+  border-color: #374151;
+}
+
+body.dark-mode .machine-selector:focus,
+body.dark-mode .ingredient-lot-input select:focus {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+}
+
+body.dark-mode .ingredient-lot-input label {
+  color: #e2e8f0;
+}
+
+body.dark-mode .modal-body {
+  scrollbar-width: thin;
+  scrollbar-color: #374151 #1f2937;
+}
+
+body.dark-mode .modal-body::-webkit-scrollbar {
+  width: 8px;
+}
+
+body.dark-mode .modal-body::-webkit-scrollbar-track {
+  background: #1f2937;
+}
+
+body.dark-mode .modal-body::-webkit-scrollbar-thumb {
+  background-color: #374151;
+  border-radius: 4px;
+}
+
+/* Dark mode - Production Product Name */
+body.dark-mode .production-product-name {
+  color: #94a3b8;
+}
+
+/* Dark mode - Lot Number Display */
+body.dark-mode .lot-number-display label {
+  color: #e2e8f0;
+}
+
+/* Dark mode - Package Section */
+body.dark-mode .package-section > label {
+  color: #e2e8f0;
+}
+
+body.dark-mode .package-inputs {
+  background-color: #111827;
+  border-color: #374151;
+}
 
 body.dark-mode .package-input-group label {
   color: #e2e8f0;
 }
 
 body.dark-mode .package-input-group input {
-  background-color: #111827;
-  color: #f8fafc;
-  border-color: #334155;
+  background-color: #1f2937 !important;
+  color: #e5e7eb !important;
+  border-color: #374151 !important;
 }
 
 body.dark-mode .package-input-group input:hover {
-  border-color: #3f4d63;
+  border-color: #4b5563 !important;
 }
 
 body.dark-mode .package-input-group input:focus {
-  border-color: #60a5fa;
-  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.25);
+  border-color: #3b82f6 !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2) !important;
 }
 
+body.dark-mode .package-input-group input:valid:not(:placeholder-shown) {
+  border-color: #22c55e !important;
+  background-color: #1f2937 !important;
+  color: #e5e7eb !important;
+}
+
+/* Dark mode - Bulk Qty Section */
+body.dark-mode .bulk-qty-section {
+  background-color: #111827;
+  border-color: #374151;
+}
+
+body.dark-mode .bulk-qty-inputs input {
+  background-color: #1f2937 !important;
+  color: #e5e7eb !important;
+  border-color: #374151 !important;
+}
+
+body.dark-mode .bulk-qty-label {
+  color: #e2e8f0;
+}
+
+body.dark-mode .bulk-qty-group span {
+  color: #e5e7eb;
+}
+
+body.dark-mode .bulk-qty-inputs input:hover {
+  border-color: #4b5563 !important;
+}
+
+body.dark-mode .bulk-qty-inputs input:focus {
+  border-color: #3b82f6 !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2) !important;
+}
+
+body.dark-mode .bulk-qty-inputs input:valid:not(:placeholder-shown) {
+  border-color: #22c55e !important;
+  background-color: #1f2937 !important;
+  color: #e5e7eb !important;
+}
+
+body.dark-mode .bulk-qty-inputs input:valid:not(:placeholder-shown):focus {
+  border-color: #22c55e !important;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.2) !important;
+}
+
+/* Dark mode - Package inputs (lbs/oz) */
+body.dark-mode .package-input-group input {
+  background-color: #1f2937 !important;
+  color: #e5e7eb !important;
+  border-color: #374151 !important;
+}
+
+body.dark-mode .package-input-group input:focus {
+  border-color: #3b82f6 !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2) !important;
+}
+
+body.dark-mode .package-input-group input:valid:not(:placeholder-shown) {
+  border-color: #22c55e !important;
+  background-color: #1f2937 !important;
+  color: #e5e7eb !important;
+}
+
+body.dark-mode .package-input-group input:valid:not(:placeholder-shown):focus {
+  border-color: #22c55e !important;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.2) !important;
+}
+
+/* Dark mode - Weight Display */
 body.dark-mode .weight-display {
-  background-color: #1f2937;
-  border-color: #334155;
+  background-color: rgba(59, 130, 246, 0.1);
+  border-color: #3b82f6;
 }
 
 body.dark-mode .weight-display h4 {
-  color: #f8fafc;
+  color: #60a5fa;
 }
 
 body.dark-mode .weight-display span {
   color: #60a5fa;
+}
+
+/* Dark mode - Manual Entry Input */
+body.dark-mode .manual-entry-input {
+  background-color: #1f2937;
+  color: #e5e7eb;
+  border-color: #374151;
+}
+
+body.dark-mode .manual-entry-input:focus {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+}
+
+/* Dark mode - Machine Info */
+body.dark-mode .machine-info strong {
+  color: #22c55e;
+}
+
+body.dark-mode .machine-info small {
+  color: #9ca3af;
+}
+
+/* Dark mode - Freeze Dryer Section */
+body.dark-mode .freeze-dryer-section label {
+  color: #e2e8f0;
+}
+
+body.dark-mode .freeze-dryer-selected {
+  background: rgba(34, 197, 94, 0.15);
+  border-color: rgba(34, 197, 94, 0.4);
+}
+
+/* Dark mode - Machine ingredients container and items */
+body.dark-mode .machine-ingredients {
+  background: #1f2937 !important;
+  border: 1px solid #374151 !important;
+}
+
+body.dark-mode .ingredient-item {
+  background: #111827 !important;
+  border: 1px solid #374151 !important;
+}
+
+body.dark-mode .ingredient-item label {
+  color: #e5e7eb !important;
+}
+
+body.dark-mode .lot-selector {
+  background-color: #1f2937;
+  border-color: #374151;
+  color: #e5e7eb;
+}
+
+body.dark-mode .lot-selector:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+body.dark-mode .lot-selector.complete {
+  border-color: #22c55e;
+  background-color: #1f2937;
+}
+
+/* Dark mode - Ingredient weight/count inputs */
+body.dark-mode .machine-ingredients input[type="number"] {
+  background-color: #1f2937 !important;
+  color: #e5e7eb !important;
+  border-color: #374151 !important;
+}
+
+body.dark-mode .machine-ingredients input[type="number"]:focus {
+  border-color: #3b82f6 !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2) !important;
+}
+
+body.dark-mode .machine-ingredients input[type="number"]:valid:not(:placeholder-shown) {
+  border-color: #22c55e !important;
+  background-color: #1f2937 !important;
+  color: #e5e7eb !important;
+}
+
+body.dark-mode .machine-ingredients span {
+  color: #e5e7eb;
+}
+
+body.dark-mode .weight-input-group span {
+  color: #e5e7eb;
+}
+
+body.dark-mode .unit-label {
+  color: #e5e7eb;
+}
+
+body.dark-mode .lot-number-input {
+  background-color: #1f2937;
+  border-color: #374151;
+  color: #e5e7eb;
+}
+
+body.dark-mode .lot-number-input.complete {
+  background-color: #1f2937;
+}
+
+body.dark-mode .lot-number-input:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+body.dark-mode .lot-number-input.complete {
+  border-color: #22c55e;
+  background-color: #1f2937;
+}
+
+body.dark-mode .lot-number-input:disabled {
+  background-color: #111827;
+  border-color: #374151;
+  color: #6b7280;
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ===== TABLET UI ENHANCEMENTS ===== */
+@media (max-width: 1024px) {
+  .small-modal {
+    max-width: 90vw;
+  }
+
+  .ingredient-lot-input {
+    margin-bottom: 14px;
+  }
+
+  .ingredient-lot-input label {
+    font-size: 0.95rem;
+    margin-bottom: 8px;
+    font-weight: 700;
+  }
+
+  .ingredient-lot-input select,
+  .ingredient-lot-input input {
+    padding: 12px 14px;
+    font-size: 1rem;
+    border: 3px solid #d1d5db;
+    border-radius: 8px;
+    min-height: 48px;
+  }
+
+  .ingredient-lot-input select:focus,
+  .ingredient-lot-input input:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.15);
+  }
+
+  .machine-card {
+    border: 3px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+
+  .machine-selector {
+    padding: 12px 14px;
+    font-size: 1rem;
+    border: 3px solid #d1d5db;
+    border-radius: 8px;
+    min-height: 48px;
+  }
+
+  .btn-add-machine,
+  .btn-submit,
+  .btn-cancel {
+    padding: 14px 20px;
+    font-size: 1rem;
+    min-height: 50px;
+    border-radius: 8px;
+    font-weight: 700;
+  }
+
+  .package-input-group input {
+    padding: 12px 14px;
+    font-size: 1rem;
+    border: 3px solid #d1d5db;
+    border-radius: 8px;
+    min-height: 48px;
+  }
+
+  .form-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 20px;
+  }
+
+  .form-actions button {
+    flex: 1;
+    min-height: 50px;
+  }
+
+  .weight-display {
+    background: #f0f9ff;
+    border: 2px solid #93c5fd;
+    padding: 16px;
+    border-radius: 8px;
+    margin: 20px 0;
+  }
+
+  .weight-display h4 {
+    margin: 0 0 8px 0;
+    font-size: 0.95rem;
+    color: #1e40af;
+  }
+
+  .weight-display span {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #1e40af;
+  }
+
+  /* Mode toggle buttons */
+  .btn-mode {
+    min-height: 44px;
+    padding: 10px 16px;
+    font-size: 0.95rem;
+    border-radius: 8px;
+    font-weight: 700;
+    transition: all 0.2s;
+  }
+
+  .btn-mode:active {
+    transform: scale(0.98);
+  }
+}
+
+@media (max-width: 768px) {
+  .small-modal {
+    max-width: 95vw;
+    max-height: 95vh;
+    border-radius: 12px;
+  }
+
+  .modal-body {
+    max-height: calc(95vh - 140px);
+    padding: 16px;
+  }
+
+  .ingredient-lot-input {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .ingredient-lot-input > div {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .package-inputs {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .package-input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .form-actions {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .modal-header {
+    padding: 16px;
+  }
+
+  .modal-title-block h3 {
+    font-size: 1.4rem;
+  }
 }

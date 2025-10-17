@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
-import { FaBarcode, FaCalendarAlt, FaSearch, FaWarehouse, FaExclamationTriangle, FaTruck, FaUtensils } from 'react-icons/fa';
+import { FaSearch } from 'react-icons/fa';
+import LotCard from './LotCard';
 import './LotTrackingPanel.css';
 
 const LOT_STATUS_META = {
@@ -25,7 +26,6 @@ const LotTrackingPanel = ({
   const [statusFilter, setStatusFilter] = useState('');
   const [timeframe, setTimeframe] = useState(DEFAULT_TIMEFRAME_OPTIONS[0].value);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedLotId, setSelectedLotId] = useState(null);
 
   const filteredLots = useMemo(() => {
     if (!lots || lots.length === 0) return [];
@@ -65,12 +65,6 @@ const LotTrackingPanel = ({
       { total: 0, expiringSoon: 0, onHold: 0, recalled: 0 }
     );
   }, [lots]);
-
-  const selectedLot = useMemo(() => {
-    if (!filteredLots || filteredLots.length === 0) return null;
-    const target = filteredLots.find((lot) => lot.id === selectedLotId);
-    return target || filteredLots[0];
-  }, [filteredLots, selectedLotId]);
 
   return (
     <div className="lot-tracking-panel">
@@ -128,151 +122,27 @@ const LotTrackingPanel = ({
         </div>
       </div>
 
-      <div className="lot-tracking-body">
-        <div className="lot-table">
-          <div className="lot-table-head">
-            <span>Lot</span>
-            <span>Product</span>
-            <span>Sale by</span>
-            <span>Status</span>
-            <span>Quantity</span>
-            <span>Primary location</span>
+      <div className="lot-card-grid">
+        {loading && (
+          <div className="empty-state">
+            <p>Loading lots...</p>
           </div>
+        )}
 
-          <div className="lot-table-body">
-            {loading && (
-              <div className="lot-table-row placeholder">
-                <span>Loading lots...</span>
-              </div>
-            )}
-
-            {!loading && filteredLots.length === 0 && (
-              <div className="lot-table-row placeholder">
-                <span>No lots match the current filters</span>
-              </div>
-            )}
-
-            {!loading &&
-              filteredLots.map((lot) => {
-                const meta = LOT_STATUS_META[lot.status] || { label: lot.status || 'Unknown', tone: 'pending' };
-                return (
-                  <button
-                    key={lot.id}
-                    className={`lot-table-row ${selectedLot && selectedLot.id === lot.id ? 'selected' : ''}`}
-                    onClick={() => {
-                      setSelectedLotId(lot.id);
-                      onInspectLot(lot);
-                    }}
-                  >
-                    <span>
-                      <FaBarcode className="row-icon" />
-                      <strong>{lot.lotNumber}</strong>
-                    </span>
-                    <span>
-                      <div className="product-stack">
-                        <strong>{lot.productName}</strong>
-                        <small>{lot.categoryName}</small>
-                      </div>
-                    </span>
-                    <span>{lot.saleBy ? lot.saleBy.toLocaleDateString() : '—'}</span>
-                    <span>
-                      <span className={`status-pill ${meta.tone}`}>{meta.label}</span>
-                    </span>
-                    <span>{lot.quantityLabel || lot.quantityUnits || '—'}</span>
-                    <span>{lot.primaryLocation || '—'}</span>
-                  </button>
-                );
-              })}
+        {!loading && filteredLots.length === 0 && (
+          <div className="empty-state">
+            <p>No lots match the current filters</p>
           </div>
-        </div>
+        )}
 
-        <aside className="lot-detail">
-          {selectedLot ? (
-            <>
-              <header>
-                <h3>{selectedLot.productName}</h3>
-                <p className="lot-number">
-                  <FaBarcode />
-                  {selectedLot.lotNumber}
-                </p>
-              </header>
-
-              <section className="lot-meta">
-                <div className="meta-item">
-                  <FaCalendarAlt />
-                  <div>
-                    <span>Sale by</span>
-                    <strong>{selectedLot.saleBy ? selectedLot.saleBy.toLocaleDateString() : 'Not set'}</strong>
-                  </div>
-                </div>
-                <div className="meta-item">
-                  <FaWarehouse />
-                  <div>
-                    <span>Locations</span>
-                    <strong>{selectedLot.locations?.map((loc) => loc.name).join(', ') || 'No locations logged'}</strong>
-                  </div>
-                </div>
-                <div className="meta-item">
-                  <FaTruck />
-                  <div>
-                    <span>Last movement</span>
-                    <strong>{selectedLot.lastMovement || 'Waiting for shipment'}</strong>
-                  </div>
-                </div>
-              </section>
-
-              <section className="lot-ingredients">
-                <h4>
-                  <FaUtensils />
-                  Ingredient snapshot
-                </h4>
-                <div className="ingredient-grid">
-                  {(selectedLot.ingredients && selectedLot.ingredients.length > 0
-                    ? selectedLot.ingredients
-                    : ['Skittles', 'Lemon Heads', 'Gushers', 'Premium chocolate'])
-                    .map((ingredient) => (
-                      <span key={ingredient} className="ingredient-pill">
-                        {ingredient}
-                      </span>
-                    ))}
-                </div>
-              </section>
-
-              <section className="lot-notes">
-                <h4>Notes &amp; QC status</h4>
-                <p>{selectedLot.notes || 'No quality notes logged for this lot yet.'}</p>
-                {selectedLot.alert && (
-                  <div className="lot-alert">
-                    <FaExclamationTriangle />
-                    <p>{selectedLot.alert}</p>
-                  </div>
-                )}
-              </section>
-
-              <section className="lot-movements">
-                <h4>Movement timeline</h4>
-                <ul>
-                  {(selectedLot.timeline || []).map((event, idx) => (
-                    <li key={`${event.label}-${idx}`}>
-                      <span className="event-date">{event.date}</span>
-                      <div>
-                        <strong>{event.label}</strong>
-                        <small>{event.actor}</small>
-                      </div>
-                    </li>
-                  ))}
-                  {(!selectedLot.timeline || selectedLot.timeline.length === 0) && (
-                    <li className="placeholder">Movement events will appear here once this lot moves.</li>
-                  )}
-                </ul>
-              </section>
-            </>
-          ) : (
-            <div className="empty-detail">
-              <p>Select a lot to see quality checkpoints, locations, and movement history.</p>
-            </div>
-          )}
-        </aside>
+        {!loading &&
+          filteredLots.map((lot) => (
+            <LotCard
+              key={lot.id}
+              lot={lot}
+              onClick={() => onInspectLot(lot)}
+            />
+          ))}
       </div>
     </div>
   );

@@ -109,6 +109,16 @@
     height: 14px;
     display: block;
 }
+
+body.dark-mode .icon-button {
+    background: #1f2937;
+    border-color: #334155;
+    color: #e2e8f0;
+}
+
+body.dark-mode .icon-button:hover {
+    background: #273449;
+}
 .action-cell {
     display: flex;
     align-items: center;

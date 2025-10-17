@@ -1,7 +1,7 @@
 ﻿import { useState, useEffect, useMemo } from 'react';
 import './App.css';
 import { db, auth } from './firebase';
-import { collection, addDoc, doc, updateDoc, writeBatch, serverTimestamp } from "firebase/firestore";
+import { collection, addDoc, doc, updateDoc, deleteDoc, writeBatch, serverTimestamp, getDoc, arrayUnion, setDoc } from "firebase/firestore";
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { useAuth } from './contexts/AuthContext';
@@ -30,7 +30,12 @@ import CsvImportPreviewModal from './components/CsvImportPreviewModal';
 import ErrorBoundary from './components/ErrorBoundary';
 import LotTrackingPanel from './components/LotTrackingPanel';
 import IngredientIntakeModal from './components/IngredientIntakeModal';
-import { FaCog, FaExclamationTriangle } from 'react-icons/fa';
+import AddIngredientModal from './components/AddIngredientModal';
+import EquipmentManager from './components/EquipmentManager';
+import LotCard from './components/LotCard';
+import LotDetailModal from './components/LotDetailModal';
+import RecipeModal from './components/RecipeModal';
+import { FaCog, FaExclamationTriangle, FaEdit } from 'react-icons/fa';
 import { combineFlavorName, stripContainerSuffix, normalizeString } from './utils/containerUtils';
 
 function App() {
@@ -43,6 +48,8 @@ function App() {
   const { data: batches, loading: batchesLoading } = useFirestoreCollection(db, 'batches', !!user);
   const { data: ingredients, loading: ingredientsLoading } = useFirestoreCollection(db, 'ingredients', !!user);
   const { data: ingredientLots, loading: ingredientLotsLoading } = useFirestoreCollection(db, 'ingredientLots', !!user);
+  const { data: equipment, loading: equipmentLoading } = useFirestoreCollection(db, 'equipment', !!user);
+  const { data: recipes, loading: recipesLoading } = useFirestoreCollection(db, 'recipes', !!user);
 
   // Keep products in state for InventoryProvider (which needs setProducts for optimistic updates)
   const [products, setProducts] = useState({});
@@ -52,12 +59,13 @@ function App() {
     setProducts(firestoreProducts);
   }, [firestoreProducts]);
 
-  const loading = categoriesLoading || productsLoading || batchesLoading || ingredientsLoading || ingredientLotsLoading;
+  const loading = categoriesLoading || productsLoading || batchesLoading || ingredientsLoading || ingredientLotsLoading || equipmentLoading || recipesLoading;
 
   const [selectedProductId, setSelectedProductId] = useState(null);
   const [activeModal, setActiveModal] = useState(null);
   const [modalPayload, setModalPayload] = useState(null);
   const [tempFinalCount, setTempFinalCount] = useState(null);
+  const [selectedBatchId, setSelectedBatchId] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const debouncedSearchTerm = useDebounce(searchTerm, SEARCH_DEBOUNCE_DELAY);
   const [selectedCategoryId, setSelectedCategoryId] = useState('');
@@ -66,6 +74,10 @@ function App() {
   const [selectedIngredientId, setSelectedIngredientId] = useState(null);
   const [intakeIngredientId, setIntakeIngredientId] = useState(null);
   const [isIngredientIntakeOpen, setIsIngredientIntakeOpen] = useState(false);
+  const [isIngredientCreateOpen, setIsIngredientCreateOpen] = useState(false);
+  const [isIngredientEditOpen, setIsIngredientEditOpen] = useState(false);
+  const [ingredientToEdit, setIngredientToEdit] = useState(null);
+  const [editingLotId, setEditingLotId] = useState(null);
   const [darkMode, setDarkMode] = useState(() => {
     const saved = localStorage.getItem('darkMode');
     return saved ? JSON.parse(saved) : false;
@@ -124,7 +136,11 @@ function App() {
         { totalOunces: 0, totalUnits: 0 }
       );
 
-      const topPriorityBatch = sortedBatches.find(b => b.status === 'Make') || sortedBatches.find(b => b.status === 'Package') || sortedBatches.find(b => b.status === 'Ready');
+      const topPriorityBatch =
+        sortedBatches.find(b => b.status === 'Requested') ||
+        sortedBatches.find(b => b.status === 'Make') ||
+        sortedBatches.find(b => b.status === 'Package') ||
+        sortedBatches.find(b => b.status === 'Ready');
       const overallStatus = topPriorityBatch?.status || 'Idle';
 
       return {
@@ -142,11 +158,11 @@ function App() {
     if (debouncedSearchTerm) { combined = combined.filter(p => p.flavor.toLowerCase().includes(debouncedSearchTerm.toLowerCase())); }
 
     const priorityByTab = {
-      Production: { Make: 1, Package: 2, Ready: 3, Idle: 4, Completed: 5 },
-      Packaging: { Package: 1, Ready: 2, Make: 3, Idle: 4, Completed: 5 },
-      Shipping: { Ready: 1, Package: 2, Make: 3, Idle: 4, Completed: 5 },
+      Production: { Requested: 1, Make: 2, Package: 3, Ready: 4, Idle: 5, Completed: 6 },
+      Packaging: { Package: 1, Ready: 2, Make: 3, Requested: 4, Idle: 5, Completed: 6 },
+      Shipping: { Ready: 1, Package: 2, Make: 3, Requested: 4, Idle: 5, Completed: 6 },
     };
-    const defaultPriority = { Make: 1, Package: 2, Ready: 3, Idle: 4, Completed: 5 };
+    const defaultPriority = { Requested: 1, Make: 2, Package: 3, Ready: 4, Idle: 5, Completed: 6 };
     const statusPriority = priorityByTab[activeTab] || defaultPriority;
     combined.sort((a, b) => {
       const getBestRank = (product) => {
@@ -173,9 +189,10 @@ function App() {
   }, [products, categories, batches, debouncedSearchTerm, selectedCategoryId, activeTab]);
 
   const tabCounts = useMemo(() => {
-    const counts = { Make: 0, Package: 0, Ready: 0 };
+    const counts = { Requested: 0, Make: 0, Package: 0, Ready: 0 };
     Object.values(batches || {}).forEach(batch => {
-      if (batch.status === 'Make') counts.Make++;
+      if (batch.status === 'Requested') counts.Requested++;
+      else if (batch.status === 'Make') counts.Make++;
       else if (batch.status === 'Package') counts.Package++;
       else if (batch.status === 'Ready') counts.Ready++;
     });
@@ -333,10 +350,16 @@ function App() {
       const unit = quantityObj.unit || lot.quantityUnit || lot.defaultUnit || 'units';
       const expirationDate = toDate(lot.expirationDate || lot.bestBy || lot.saleByDate);
       const intakeDate = toDate(lot.intakeDate || lot.receivedAt || lot.createdAt);
+      
+      // Calculate remaining amount after consumption
+      const consumedAmount = lot.consumedAmount || 0;
+      const remainingAmount = lot.remainingAmount !== undefined ? lot.remainingAmount : (amount - consumedAmount);
 
       return {
         ...lot,
         amount: Number.isFinite(amount) ? amount : 0,
+        consumedAmount: Number.isFinite(consumedAmount) ? consumedAmount : 0,
+        remainingAmount: Number.isFinite(remainingAmount) ? remainingAmount : 0,
         unit,
         expirationDate,
         intakeDate,
@@ -348,7 +371,7 @@ function App() {
     const cards = Object.values(ingredients).map((ingredient) => {
       const relevantLots = normalizeLots.filter((lot) => lot.ingredientId === ingredient.id);
       const activeLots = relevantLots.filter((lot) => lot.status !== 'Depleted');
-      const onHandAmount = activeLots.reduce((sum, lot) => sum + (lot.amount || 0), 0);
+      const onHandAmount = activeLots.reduce((sum, lot) => sum + (lot.remainingAmount || 0), 0);
       const defaultUnit = ingredient.defaultUnit || activeLots[0]?.unit || 'units';
 
       const soonBoundary = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
@@ -400,38 +423,356 @@ function App() {
     return ingredients[selectedIngredientId] || null;
   }, [selectedIngredientId, ingredients]);
 
-  const handleDataUpdate = async (newStatus, data = null, batchId = null, options = {}) => {
-    const product = products[selectedProductId];
-    try {
-      if (newStatus === 'Make') {
-        await addDoc(collection(db, "batches"), { productId: product.id, categoryId: product.categoryId, status: 'Make', dateStarted: serverTimestamp(), request: data });
-      } else if (batchId && newStatus === 'Package') {
-        await updateDoc(doc(db, "batches", batchId), { status: 'Package', statusSetAt: serverTimestamp() });
-      } else if (batchId && newStatus === 'Ready' && data) {
-        const newInventory = [...(product.containerInventory || [])];
-        
-        data.countedPackages.forEach(pkg => {
-          const inventoryIndex = newInventory.findIndex(inv => inv.templateId === pkg.packageId);
-          const quantityProduced = parseInt(pkg.quantity, 10);
+  // Toast alerts for expiring ingredient lots
+  useEffect(() => {
+    if (activeTab === 'Inventory' && inventoryView === 'ingredients' && !loading && ingredientDashboardData.lots) {
+      const now = new Date();
+      const criticalBoundary = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000); // 3 days
+      const soonBoundary = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // 7 days
 
-          if (inventoryIndex > -1 && !isNaN(quantityProduced) && quantityProduced > 0) {
-            newInventory[inventoryIndex].quantity += quantityProduced;
-          } else if (inventoryIndex === -1 && !isNaN(quantityProduced) && quantityProduced > 0) {
-            newInventory.push({ templateId: pkg.packageId, quantity: quantityProduced });
+      const expired = [];
+      const critical = [];
+      const soon = [];
+
+      ingredientDashboardData.lots.forEach(lot => {
+        if (lot.expirationDate && lot.status !== 'Depleted') {
+          const expDate = lot.expirationDate;
+          const ingredientName = ingredients?.[lot.ingredientId]?.name || 'Unknown';
+
+          if (expDate < now) {
+            expired.push({ lot, ingredientName });
+          } else if (expDate <= criticalBoundary) {
+            critical.push({ lot, ingredientName });
+          } else if (expDate <= soonBoundary) {
+            soon.push({ lot, ingredientName });
           }
+        }
+      });
+
+      // Show toast notifications
+      if (expired.length > 0) {
+        toast.error(
+          `${expired.length} ingredient lot(s) have expired: ${expired.slice(0, 2).map(e => e.ingredientName).join(', ')}${expired.length > 2 ? '...' : ''}`,
+          { toastId: 'expired-ingredients', autoClose: 8000 }
+        );
+      }
+
+      if (critical.length > 0) {
+        toast.warning(
+          `CRITICAL: ${critical.length} ingredient lot(s) expire within 3 days: ${critical.slice(0, 2).map(c => c.ingredientName).join(', ')}${critical.length > 2 ? '...' : ''}`,
+          { toastId: 'critical-ingredients', autoClose: 6000 }
+        );
+      }
+
+      if (soon.length > 0 && expired.length === 0 && critical.length === 0) {
+        toast.info(
+          `${soon.length} ingredient lot(s) expire within 7 days`,
+          { toastId: 'soon-ingredients', autoClose: 5000 }
+        );
+      }
+    }
+  }, [activeTab, inventoryView, loading, ingredientDashboardData, ingredients]);
+
+  const handleDataUpdate = async (newStatus, data = null, batchId = null, options = {}) => {
+    const product = selectedProductId ? products[selectedProductId] : null;
+
+    try {
+      if (batchId) {
+        if (newStatus === 'Make') {
+          const updateData = {
+            status: 'Make',
+            statusSetAt: serverTimestamp(),
+            dateStarted: serverTimestamp()
+          };
+
+          // Add event log entry
+          if (!data) data = {};
+          const batch = writeBatch(db);
+          
+          // Process ingredient consumption when starting production
+          const ingredientConsumption = [];
+          if (data.machines && Array.isArray(data.machines)) {
+            for (const machine of data.machines) {
+              if (machine.ingredientLotConsumption && Array.isArray(machine.ingredientLotConsumption)) {
+                for (const consumption of machine.ingredientLotConsumption) {
+                  ingredientConsumption.push(consumption);
+
+                  // Decrement ingredient lot quantity
+                  const lotRef = doc(db, "ingredientLots", consumption.lotId);
+                  const lotSnap = await getDoc(lotRef);
+                  
+                  if (lotSnap.exists()) {
+                    const lotData = lotSnap.data();
+                    const currentAmount = lotData.quantity?.amount || 0;
+                    const currentConsumed = lotData.consumedAmount || 0;
+                    const newConsumed = currentConsumed + consumption.amountUsed;
+                    const newRemaining = currentAmount - newConsumed;
+
+                    // Build usage history entry (without serverTimestamp for arrayUnion)
+                    const usageEntry = {
+                      batchId: batchId,
+                      batchLotNumber: data.productionLotNumber || '',
+                      amountUsed: consumption.amountUsed,
+                      timestamp: new Date(), // Use client timestamp for arrayUnion
+                      machineId: machine.machineId
+                    };
+
+                    // Update ingredient lot with consumption data
+                    batch.update(lotRef, {
+                      consumedAmount: newConsumed,
+                      remainingAmount: Math.max(0, newRemaining),
+                      currentLocation: machine.machineName || 'Unknown',
+                      usageHistory: arrayUnion(usageEntry),
+                      updatedAt: serverTimestamp()
+                    });
+                  }
+                }
+              }
+            }
+          }
+
+          // Update the batch with new data
+          updateData.ingredientConsumption = ingredientConsumption;
+          updateData.machines = data.machines || [];
+          updateData.currentLocation = data.machines?.[0]?.machineName || 'Unknown';
+          updateData.productionLotNumber = data.productionLotNumber || '';
+          
+          batch.update(doc(db, "batches", batchId), updateData);
+
+          const batchSnap = await getDoc(doc(db, "batches", batchId));
+          if (batchSnap.exists()) {
+            const events = batchSnap.data().events || [];
+            events.push({
+              timestamp: new Date(), // Use client timestamp for arrays
+              type: 'STATUS_CHANGE',
+              from: 'Requested',
+              to: 'Make',
+              actor: user?.uid || 'unknown',
+              actorEmail: user?.email || 'unknown'
+            });
+            batch.update(doc(db, "batches", batchId), { events });
+          }
+
+          await batch.commit();
+        } else if (newStatus === 'Package') {
+          const updateData = {
+            status: 'Package',
+            statusSetAt: serverTimestamp()
+          };
+
+          // Add event log and movement tracking if provided
+          const batch = writeBatch(db);
+          batch.update(doc(db, "batches", batchId), updateData);
+
+          const batchSnap = await getDoc(doc(db, "batches", batchId));
+          if (batchSnap.exists()) {
+            const batchData = batchSnap.data();
+            const events = batchData.events || [];
+            events.push({
+              timestamp: new Date(), // Use client timestamp for arrays
+              type: 'STATUS_CHANGE',
+              from: 'Make',
+              to: 'Package',
+              actor: user?.uid || 'unknown',
+              actorEmail: user?.email || 'unknown'
+            });
+
+            // Add movement if provided
+            if (data && data.movement) {
+              const movements = batchData.movements || [];
+              movements.push({
+                ...data.movement,
+                timestamp: new Date(), // Use client timestamp for arrays
+                actor: user?.uid || 'unknown'
+              });
+              batch.update(doc(db, "batches", batchId), { events, movements, currentLocation: data.movement.toLocation });
+            } else {
+              batch.update(doc(db, "batches", batchId), { events });
+            }
+          }
+
+          await batch.commit();
+        } else if (newStatus === 'Ready' && data && product) {
+          const newInventory = [...(product.containerInventory || [])];
+
+          data.countedPackages.forEach(pkg => {
+            const inventoryIndex = newInventory.findIndex(inv => inv.templateId === pkg.packageId);
+            const quantityProduced = parseInt(pkg.quantity, 10);
+
+            if (inventoryIndex > -1 && !isNaN(quantityProduced) && quantityProduced > 0) {
+              newInventory[inventoryIndex].quantity += quantityProduced;
+            } else if (inventoryIndex === -1 && !isNaN(quantityProduced) && quantityProduced > 0) {
+              newInventory.push({ templateId: pkg.packageId, quantity: quantityProduced });
+            }
+          });
+
+          const batch = writeBatch(db);
+          
+          // Get existing batch data to preserve events
+          const batchSnap = await getDoc(doc(db, "batches", batchId));
+          const batchData = batchSnap.data();
+          const events = batchData.events || [];
+          events.push({
+            timestamp: new Date(), // Use client timestamp for arrays
+            type: 'STATUS_CHANGE',
+            from: 'Package',
+            to: 'Ready',
+            actor: user?.uid || 'unknown',
+            actorEmail: user?.email || 'unknown'
+          });
+          events.push({
+            timestamp: new Date(), // Use client timestamp for arrays
+            type: 'FINALIZE',
+            totalUnits: (data.countedPackages || []).reduce((sum, p) => sum + p.quantity, 0),
+            actor: user?.uid || 'unknown'
+          });
+
+          batch.update(doc(db, "batches", batchId), {
+            status: 'Ready',
+            finalCount: data,
+            dateReady: serverTimestamp(),
+            request: null,
+            events: events
+          });
+          batch.update(doc(db, "products", product.id), { containerInventory: newInventory });
+          await batch.commit();
+        } else if (newStatus === 'Completed') {
+          const batch = writeBatch(db);
+          const batchSnap = await getDoc(doc(db, "batches", batchId));
+          const batchData = batchSnap.data();
+          const events = batchData.events || [];
+          events.push({
+            timestamp: new Date(), // Use client timestamp for arrays
+            type: 'STATUS_CHANGE',
+            from: batchData.status,
+            to: 'Completed',
+            actor: user?.uid || 'unknown',
+            actorEmail: user?.email || 'unknown'
+          });
+
+          batch.update(doc(db, "batches", batchId), {
+            status: 'Completed',
+            statusSetAt: serverTimestamp(),
+            events: events
+          });
+          await batch.commit();
+        }
+      } else if (newStatus === 'Requested' && product) {
+        await addDoc(collection(db, "batches"), {
+          productId: product.id,
+          categoryId: product.categoryId,
+          status: 'Requested',
+          requestedAt: serverTimestamp(),
+          request: data
+        });
+      } else if (newStatus === 'Make' && product && data) {
+        // Process ingredient consumption when starting production
+        const ingredientConsumption = [];
+        const batch = writeBatch(db);
+
+        // Extract all ingredient consumption data from machines
+        if (data.machines && Array.isArray(data.machines)) {
+          for (const machine of data.machines) {
+            if (machine.ingredientLotConsumption && Array.isArray(machine.ingredientLotConsumption)) {
+              for (const consumption of machine.ingredientLotConsumption) {
+                ingredientConsumption.push(consumption);
+
+                // Decrement ingredient lot quantity
+                const lotRef = doc(db, "ingredientLots", consumption.lotId);
+                const lotSnap = await getDoc(lotRef);
+                
+                if (lotSnap.exists()) {
+                  const lotData = lotSnap.data();
+                  const currentAmount = lotData.quantity?.amount || 0;
+                  const currentConsumed = lotData.consumedAmount || 0;
+                  const newConsumed = currentConsumed + consumption.amountUsed;
+                  const newRemaining = currentAmount - newConsumed;
+
+                  // Build usage history entry (without serverTimestamp for arrayUnion)
+                  const usageEntry = {
+                    batchId: null, // Will be set after batch is created
+                    batchLotNumber: data.productionLotNumber || '',
+                    amountUsed: consumption.amountUsed,
+                    timestamp: new Date(), // Use client timestamp for arrayUnion
+                    machineId: machine.machineId
+                  };
+
+                  // Update ingredient lot with consumption data
+                  batch.update(lotRef, {
+                    consumedAmount: newConsumed,
+                    remainingAmount: Math.max(0, newRemaining),
+                    currentLocation: machine.machineName || 'Unknown',
+                    usageHistory: arrayUnion(usageEntry),
+                    updatedAt: serverTimestamp()
+                  });
+                }
+              }
+            }
+          }
+        }
+
+        // Create the batch document
+        const newBatchRef = await addDoc(collection(db, "batches"), {
+          productId: product.id,
+          categoryId: product.categoryId,
+          status: 'Make',
+          dateStarted: serverTimestamp(),
+          request: data,
+          ingredientConsumption: ingredientConsumption,
+          machines: data.machines || [],
+          currentLocation: data.machines?.[0]?.machineName || 'Unknown',
+          movements: [
+            {
+              timestamp: new Date(), // Use client timestamp for arrays
+              fromLocation: 'Ingredient Storage',
+              toLocation: data.machines?.[0]?.machineName || 'Unknown',
+              quantity: null, // To be confirmed at packaging
+              actor: user?.uid || 'unknown',
+              notes: 'Production started'
+            }
+          ],
+          events: [
+            {
+              timestamp: new Date(), // Use client timestamp for arrays
+              type: 'STATUS_CHANGE',
+              from: 'Requested',
+              to: 'Make',
+              actor: user?.uid || 'unknown',
+              actorEmail: user?.email || 'unknown'
+            }
+          ]
         });
 
-        const batch = writeBatch(db);
-        batch.update(doc(db, "batches", batchId), { status: 'Ready', finalCount: data, dateReady: serverTimestamp(), request: null });
-        batch.update(doc(db, "products", product.id), { containerInventory: newInventory });
+        // Now update ingredient lot usage history with the batch ID
+        for (const consumption of ingredientConsumption) {
+          const lotRef = doc(db, "ingredientLots", consumption.lotId);
+          const lotSnap = await getDoc(lotRef);
+          
+          if (lotSnap.exists()) {
+            const usageHistory = lotSnap.data().usageHistory || [];
+            const lastEntry = usageHistory[usageHistory.length - 1];
+            if (lastEntry && !lastEntry.batchId) {
+              lastEntry.batchId = newBatchRef.id;
+              batch.update(lotRef, { usageHistory: usageHistory });
+            }
+          }
+        }
+
         await batch.commit();
-      } else if (batchId && newStatus === 'Completed') {
-        await updateDoc(doc(db, "batches", batchId), { status: 'Completed', statusSetAt: serverTimestamp() });
       }
+
       if (!options.keepOpen) {
         handleCloseModal();
       }
-      toast.success('Status updated successfully');
+
+      // Show status-specific success messages
+      if (newStatus === 'Requested') {
+        toast.success('Production request submitted successfully');
+      } else if (newStatus === 'Make') {
+        toast.success('Production run started successfully');
+      } else {
+        toast.success('Status updated successfully');
+      }
     } catch (error) {
       console.error("Error updating status: ", error);
       toast.error(`Failed to update status: ${error.message || 'Please try again'}`);
@@ -451,11 +792,47 @@ function App() {
 
     try {
       const batch = writeBatch(db);
-      batchIds.forEach(id => {
-        batch.delete(doc(db, "batches", id));
-      });
+
+      // First, restore ingredient quantities for all batches being deleted
+      for (const batchId of batchIds) {
+        const batchSnap = await getDoc(doc(db, "batches", batchId));
+        
+        if (batchSnap.exists()) {
+          const batchData = batchSnap.data();
+          const consumption = batchData.ingredientConsumption || [];
+
+          // Restore each ingredient lot quantity
+          for (const item of consumption) {
+            const lotRef = doc(db, "ingredientLots", item.lotId);
+            const lotSnap = await getDoc(lotRef);
+
+            if (lotSnap.exists()) {
+              const lotData = lotSnap.data();
+              const currentConsumed = lotData.consumedAmount || 0;
+              const newConsumed = Math.max(0, currentConsumed - item.amountUsed);
+              const currentAmount = lotData.quantity?.amount || 0;
+              const newRemaining = currentAmount - newConsumed;
+
+              // Remove this batch from usage history
+              const updatedHistory = (lotData.usageHistory || []).filter(
+                entry => entry.batchId !== batchId
+              );
+
+              batch.update(lotRef, {
+                consumedAmount: newConsumed,
+                remainingAmount: Math.max(0, newRemaining),
+                usageHistory: updatedHistory,
+                updatedAt: serverTimestamp()
+              });
+            }
+          }
+        }
+
+        batch.delete(doc(db, "batches", batchId));
+      }
+
       await batch.commit();
-      toast.success(`Deleted ${batchIds.length} batch(es)`);
+      toast.success(`Deleted ${batchIds.length} batch(es) and restored ingredient quantities`);
     } catch (error) {
       console.error("Error deleting batches:", error);
       toast.error(`Failed to delete batches: ${error.message || 'Unknown error'}`);
@@ -465,12 +842,297 @@ function App() {
   const handleIngredientIntakeClose = () => {
     setIsIngredientIntakeOpen(false);
     setIntakeIngredientId(null);
+    setEditingLotId(null);
   };
 
-  const handleIngredientIntakeSubmit = (payload) => {
-    console.debug('Ingredient intake submission (preview)', payload);
-    toast.success('Ingredient intake captured (preview only)');
-    handleIngredientIntakeClose();
+  const handleIngredientIntakeSubmit = async (payload) => {
+    try {
+      // If creating a new ingredient, add it first
+      let ingredientId = payload.ingredientId;
+      let ingredientName = payload.ingredient?.name || '';
+
+      if (payload.creatingIngredient && payload.ingredientDraft?.name) {
+        const newIngredientDoc = await addDoc(collection(db, "ingredients"), {
+          name: payload.ingredientDraft.name,
+          category: payload.ingredientDraft.category || 'Candy',
+          defaultUnit: payload.ingredientDraft.defaultUnit || 'lbs',
+          trackingType: payload.ingredientDraft.trackingType || 'weight',
+          packageProfiles: [],
+          createdAt: serverTimestamp()
+        });
+        ingredientId = newIngredientDoc.id;
+        ingredientName = payload.ingredientDraft.name;
+      } else if (payload.ingredient) {
+        ingredientName = payload.ingredient.name;
+      }
+
+      const packageDetails = payload.packageDetails || { mode: 'manual' };
+      const countNumber = parseFloat(packageDetails.count);
+      const unitWeightNumber = parseFloat(packageDetails.unitWeight);
+      const packageUnit = packageDetails.unit || payload.quantity?.unit || 'lbs';
+
+      if (packageDetails.mode === 'preset' && packageDetails.saveAsPreset && ingredientId && unitWeightNumber > 0) {
+        const existingProfiles = Array.isArray(ingredients?.[ingredientId]?.packageProfiles)
+          ? [...ingredients[ingredientId].packageProfiles]
+          : [];
+
+        const normalizedLabel = (packageDetails.label || '').trim().toLowerCase();
+        const normalizedVendor = (packageDetails.vendor || '').trim().toLowerCase();
+        const duplicateProfile = existingProfiles.some((profile) =>
+          (profile.label || '').trim().toLowerCase() === normalizedLabel &&
+          (profile.vendor || '').trim().toLowerCase() === normalizedVendor
+        );
+
+        if (!normalizedLabel) {
+          toast.error('Add a package label before saving the profile');
+        } else if (!duplicateProfile) {
+          const newProfileId = `pkg-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+          const newProfile = {
+            id: newProfileId,
+            label: packageDetails.label?.trim() || `${ingredientName} package`,
+            vendor: packageDetails.vendor || '',
+            unitWeight: unitWeightNumber,
+            unit: packageUnit
+          };
+
+          try {
+            await updateDoc(doc(db, "ingredients", ingredientId), {
+              packageProfiles: [...existingProfiles, newProfile],
+              updatedAt: serverTimestamp(),
+              updatedBy: user?.email || 'unknown'
+            });
+            toast.success(`Saved ${newProfile.label} package profile`);
+          } catch (error) {
+            console.error('Error saving package profile:', error);
+            toast.error('Failed to save package profile');
+          }
+        } else {
+          toast.info('That package profile is already saved');
+        }
+      }
+
+      // Create the ingredient lot document
+      const lotData = {
+        // Ingredient reference
+        ingredientId: ingredientId,
+        ingredientName: ingredientName,
+
+        // Supplier info
+        supplierName: payload.supplier?.name || '',
+        supplierContact: payload.supplier?.contact || '',
+        supplierOrderRef: payload.supplier?.orderRef || '',
+        supplierLotNumber: payload.supplierLotNumber || '',
+
+        // Internal tracking
+        internalLotNumber: payload.internalLotNumber || '',
+
+        // Quantity
+        quantity: {
+          amount: parseFloat(payload.quantity?.amount) || 0,
+          unit: payload.quantity?.unit || 'lbs',
+          originalAmount: payload.quantity?.originalAmount || '',
+          remaining: parseFloat(payload.quantity?.amount) || 0 // Start with full amount
+        },
+        trackingType: payload.ingredient?.trackingType || payload.ingredientDraft?.trackingType || payload.trackingType || 'weight',
+
+        packageDetails: packageDetails.mode === 'preset'
+          ? {
+              mode: 'preset',
+              presetId: packageDetails.presetId || '',
+              label: packageDetails.label || '',
+              vendor: packageDetails.vendor || '',
+              count: Number.isFinite(countNumber) ? countNumber : null,
+              unitWeight: Number.isFinite(unitWeightNumber) ? unitWeightNumber : null,
+              unit: packageUnit
+            }
+          : { mode: packageDetails.mode || 'manual' },
+
+        // Costs
+        cost: {
+          total: parseFloat(payload.cost?.total) || 0,
+          perUnit: parseFloat(payload.cost?.perUnit) || 0
+        },
+
+        // Dates
+        intakeDate: payload.intakeDate || serverTimestamp(),
+        expirationDate: payload.expirationDate || null,
+
+        // Storage
+        storageLocation: {
+          area: payload.storageLocation?.area || '',
+          bin: payload.storageLocation?.bin || ''
+        },
+
+        // QA
+        qaChecks: payload.qaChecks || {
+          tempOk: false,
+          packagingIntact: false,
+          coaReceived: false
+        },
+        coaUrl: payload.coaUrl || '',
+
+        // Status
+        status: payload.status || 'Pending QA',
+        notes: payload.notes || '',
+
+        // Metadata
+        createdAt: serverTimestamp(),
+        createdBy: user?.email || 'unknown',
+        updatedAt: serverTimestamp()
+      };
+
+      // Check if we're editing an existing lot or creating a new one
+      if (editingLotId) {
+        // Update existing lot
+        await updateDoc(doc(db, "ingredientLots", editingLotId), {
+          ...lotData,
+          updatedAt: serverTimestamp()
+        });
+        toast.success(`Ingredient lot ${payload.internalLotNumber} updated successfully!`);
+      } else {
+        // Create new lot
+        await addDoc(collection(db, "ingredientLots"), lotData);
+        toast.success(`Ingredient lot ${payload.internalLotNumber} logged successfully!`);
+      }
+
+      handleIngredientIntakeClose();
+    } catch (error) {
+      console.error('Error saving ingredient intake:', error);
+      toast.error(`Failed to save ingredient intake: ${error.message || 'Unknown error'}`);
+    }
+  };
+
+  const handleIngredientCreateSubmit = async (formData) => {
+    try {
+      const normalizedName = formData.name.trim().toLowerCase();
+      const normalizedCategory = (formData.category?.trim() || 'Uncategorized').toLowerCase();
+      const existing = Object.values(ingredients || {}).find((ingredient) =>
+        (ingredient.name || '').trim().toLowerCase() === normalizedName &&
+        (ingredient.category || 'Uncategorized').toLowerCase() === normalizedCategory
+      );
+
+      if (existing) {
+        const error = new Error(`An ingredient named "${formData.name}" already exists in the "${formData.category || 'Uncategorized'}" category.`);
+        error.code = 'duplicateIngredient';
+        toast.error(error.message);
+        throw error;
+      }
+
+      const payload = {
+        name: formData.name.trim(),
+        category: formData.category?.trim() || 'Uncategorized',
+        trackingType: formData.trackingType || 'weight',
+        defaultUnit: formData.defaultUnit?.trim() || (formData.trackingType === 'count' ? 'count' : 'lbs'),
+        notes: formData.notes?.trim() || '',
+        packageProfiles: [],
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        createdBy: user?.email || 'unknown'
+      };
+
+      if (!payload.notes) {
+        delete payload.notes;
+      }
+
+      const newDocRef = await addDoc(collection(db, 'ingredients'), payload);
+
+      toast.success(`Ingredient "${payload.name}" added`);
+
+      setSelectedIngredientId(newDocRef.id);
+
+      if (formData.startIntakeAfterSave) {
+        setEditingLotId(null);
+        setIntakeIngredientId(newDocRef.id);
+        setIsIngredientIntakeOpen(true);
+      }
+
+      setIsIngredientCreateOpen(false);
+
+      return newDocRef.id;
+    } catch (error) {
+      if (error?.code !== 'duplicateIngredient') {
+        console.error('Error creating ingredient:', error);
+        toast.error(`Failed to add ingredient: ${error.message || 'Unknown error'}`);
+      }
+      throw error;
+    }
+  };
+
+  const handleIngredientEditSubmit = async (formData) => {
+    if (!ingredientToEdit?.id) {
+      return;
+    }
+
+    try {
+      const normalizedName = formData.name.trim().toLowerCase();
+      const normalizedCategory = (formData.category?.trim() || 'Uncategorized').toLowerCase();
+      const duplicate = Object.values(ingredients || {}).find((ingredient) =>
+        ingredient.id !== ingredientToEdit.id &&
+        (ingredient.name || '').trim().toLowerCase() === normalizedName &&
+        (ingredient.category || 'Uncategorized').toLowerCase() === normalizedCategory
+      );
+
+      if (duplicate) {
+        const error = new Error(`Another ingredient named "${formData.name}" already exists in the "${formData.category || 'Uncategorized'}" category.`);
+        error.code = 'duplicateIngredient';
+        toast.error(error.message);
+        throw error;
+      }
+
+      const payload = {
+        name: formData.name.trim(),
+        category: formData.category?.trim() || 'Uncategorized',
+        trackingType: formData.trackingType || 'weight',
+        defaultUnit: formData.defaultUnit?.trim() || (formData.trackingType === 'count' ? 'count' : 'lbs'),
+        notes: formData.notes?.trim() || '',
+        updatedAt: serverTimestamp(),
+        updatedBy: user?.email || 'unknown'
+      };
+
+      if (!payload.notes) {
+        delete payload.notes;
+      }
+
+      await updateDoc(doc(db, 'ingredients', ingredientToEdit.id), payload);
+
+      toast.success(`Ingredient "${payload.name}" updated`);
+
+      setSelectedIngredientId(ingredientToEdit.id);
+      setIsIngredientEditOpen(false);
+      setIngredientToEdit(null);
+    } catch (error) {
+      if (error?.code !== 'duplicateIngredient') {
+        console.error('Error updating ingredient:', error);
+        toast.error(`Failed to update ingredient: ${error.message || 'Unknown error'}`);
+      }
+      throw error;
+    }
+  };
+
+  const handleIngredientLotEdit = (lotId) => {
+    setEditingLotId(lotId);
+    setIsIngredientIntakeOpen(true);
+  };
+
+  const handleIngredientLotDelete = async (lotId) => {
+    const lot = ingredientLots[lotId];
+    const confirmed = await showConfirm({
+      title: 'Delete Ingredient Lot?',
+      message: `Are you sure you want to delete lot ${lot?.internalLotNumber || lotId}? This cannot be undone.`,
+      confirmText: 'Delete',
+      confirmColor: 'red',
+      icon: <FaExclamationTriangle />
+    });
+
+    if (!confirmed) return;
+
+    try {
+      await deleteDoc(doc(db, "ingredientLots", lotId));
+      toast.success('Ingredient lot deleted successfully');
+    } catch (error) {
+      console.error('Error deleting ingredient lot:', error);
+      toast.error(`Failed to delete lot: ${error.message || 'Unknown error'}`);
+    }
   };
 
   const handleProductEdit = async ({ category: categoryName, flavor, categorySku, flavorSku, selectedContainers }) => {
@@ -527,6 +1189,46 @@ function App() {
     await updateDoc(doc(db, "products", product.id), productUpdates);
     toast.success('Product updated');
     handleOpenModal('manageProduct');
+  };
+
+  const handleRecipeSave = async (productId, recipePayload) => {
+    if (!productId) return;
+
+    try {
+      const recipeDocRef = doc(db, 'recipes', productId);
+      const ingredientsForRecipe = (recipePayload?.ingredients || [])
+        .filter((item) => item.ingredientId && item.requiredAmount > 0)
+        .map((item) => {
+          const clean = {};
+          Object.keys(item).forEach((key) => {
+            if (item[key] !== undefined && item[key] !== null) {
+              clean[key] = item[key];
+            }
+          });
+          return clean;
+        });
+
+      if (ingredientsForRecipe.length === 0) {
+        await deleteDoc(recipeDocRef);
+        toast.success('Recipe cleared for this product.');
+        return;
+      }
+
+      await setDoc(
+        recipeDocRef,
+        {
+          productId,
+          productName: recipePayload?.productName || '',
+          updatedAt: serverTimestamp(),
+          ingredients: ingredientsForRecipe
+        },
+        { merge: true }
+      );
+      toast.success('Recipe saved successfully.');
+    } catch (error) {
+      console.error('Error saving recipe:', error);
+      toast.error('Failed to save recipe');
+    }
   };
   
   const handleTemplateSave = async (payload) => {
@@ -774,6 +1476,7 @@ function App() {
 
   const selectedProduct = displayList.find(p => p.id === selectedProductId);
   const selectedCategory = selectedProduct ? categories[selectedProduct.categoryId] : null;
+  const selectedRecipe = selectedProduct ? recipes?.[selectedProduct.id] || null : null;
 
   const closeModalAndProduct = () => {
     handleCloseModal();
@@ -878,7 +1581,15 @@ function App() {
       <nav className={`tab-navigation ${activeTab === 'Inventory' ? 'tight' : ''}`}>
         <button className={`tab-button ${activeTab === 'Production' ? 'active' : ''}`} onClick={() => setActiveTab('Production')}>
           Production
-          {tabCounts.Make > 0 && <span className="tab-badge make">{tabCounts.Make}</span>}
+          {(tabCounts.Requested + tabCounts.Make) > 0 && (
+            <span className={`tab-badge ${
+              tabCounts.Requested > 0 && tabCounts.Make > 0 ? 'production-split' :
+              tabCounts.Requested > 0 ? 'requested' :
+              'make'
+            }`}>
+              {tabCounts.Requested + tabCounts.Make}
+            </span>
+          )}
         </button>
         <button className={`tab-button ${activeTab === 'Packaging' ? 'active' : ''}`} onClick={() => setActiveTab('Packaging')}>
           Packaging
@@ -950,7 +1661,10 @@ function App() {
                 lots={lotTrackingData}
                 loading={loading}
                 onInspectLot={(lot) => {
-                  console.debug('Inspect lot', lot?.lotNumber);
+                  if (lot?.id) {
+                    setSelectedBatchId(lot.id);
+                    setActiveModal('lotDetail');
+                  }
                 }}
               />
             )}
@@ -967,8 +1681,16 @@ function App() {
                     )}
                   </div>
                   <div className="ingredient-toolbar-actions">
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      onClick={() => setIsIngredientCreateOpen(true)}
+                    >
+                      + Add Ingredient
+                    </button>
                     {selectedIngredientId && (
                       <button
+                        type="button"
                         className="btn-text"
                         onClick={() => setSelectedIngredientId(null)}
                       >
@@ -976,8 +1698,10 @@ function App() {
                       </button>
                     )}
                     <button
+                      type="button"
                       className="btn-primary"
                       onClick={() => {
+                        setEditingLotId(null);
                         setIntakeIngredientId(selectedIngredientId);
                         setIsIngredientIntakeOpen(true);
                       }}
@@ -990,18 +1714,44 @@ function App() {
                 <div className="ingredient-card-grid">
                   {ingredientDashboardData.cards.length === 0 && (
                     <div className="empty-state">
-                      <p>No ingredients tracked yet. Log an intake to get started.</p>
+                      <p>No ingredients tracked yet. Add an ingredient or log an intake to get started.</p>
                     </div>
                   )}
 
                   {ingredientDashboardData.cards.map((card) => {
                     const isActive = selectedIngredientId === card.id;
+                    const ingredientDetails = ingredients?.[card.id] || null;
                     return (
-                      <button
+                      <div
                         key={card.id}
                         className={`ingredient-card ${isActive ? 'active' : ''}`}
+                        role="button"
+                        tabIndex={0}
+                        aria-pressed={isActive}
                         onClick={() => setSelectedIngredientId(isActive ? null : card.id)}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault();
+                            setSelectedIngredientId(isActive ? null : card.id);
+                          }
+                        }}
                       >
+                        {isActive && (
+                          <button
+                            type="button"
+                            className="ingredient-edit-btn"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              if (ingredientDetails) {
+                                setIngredientToEdit(ingredientDetails);
+                                setIsIngredientEditOpen(true);
+                              }
+                            }}
+                            aria-label={`Edit ${card.name}`}
+                          >
+                            <FaEdit aria-hidden="true" />
+                          </button>
+                        )}
                         <header>
                           <span className="ingredient-category">{card.category}</span>
                           <h3>{card.name}</h3>
@@ -1030,54 +1780,33 @@ function App() {
                             <strong>{card.nextExpiration.toLocaleDateString()}</strong>
                           </footer>
                         )}
-                      </button>
+                      </div>
                     );
                   })}
                 </div>
 
-                <div className="ingredient-lot-table">
-                  <div className="table-head">
-                    <span>Lot</span>
-                    <span>Ingredient</span>
-                    <span>Supplier</span>
-                    <span>Received</span>
-                    <span>Expires</span>
-                    <span>Status</span>
-                    <span>Quantity</span>
-                    <span>Storage</span>
-                  </div>
-                  <div className="table-body">
-                    {visibleIngredientLots.length === 0 ? (
-                      <div className="table-row placeholder">
-                        <span>No intake lots logged yet{selectedIngredient ? ` for ${selectedIngredient.name}` : ''}.</span>
-                      </div>
-                    ) : (
-                      visibleIngredientLots.map((lot) => (
-                        <div key={lot.id} className="table-row">
-                          <span>
-                            <strong>{lot.internalLotNumber || lot.id}</strong>
-                            {lot.supplierLotNumber && <small>Supplier lot {lot.supplierLotNumber}</small>}
-                          </span>
-                          <span>
-                            {ingredients?.[lot.ingredientId]?.name || 'Unknown ingredient'}
-                            <small>{ingredients?.[lot.ingredientId]?.category || '—'}</small>
-                          </span>
-                          <span>{lot.supplierName}</span>
-                          <span>{lot.intakeDate ? lot.intakeDate.toLocaleDateString() : '—'}</span>
-                          <span>{lot.expirationDate ? lot.expirationDate.toLocaleDateString() : '—'}</span>
-                          <span>
-                            <span className={`status-pill ingredient ${lot.status.toLowerCase().replace(/\s+/g, '-')}`}>
-                              {lot.status}
-                            </span>
-                          </span>
-                          <span>
-                            {lot.amount ? `${lot.amount}${lot.unit ? ` ${lot.unit}` : ''}` : '—'}
-                          </span>
-                          <span>{lot.storageLocation?.name || lot.storageLocation?.bin || lot.storageLocation || '—'}</span>
-                        </div>
-                      ))
-                    )}
-                  </div>
+                <div className="ingredient-lot-grid">
+                  {visibleIngredientLots.length === 0 ? (
+                    <div className="empty-state">
+                      <p>No intake lots logged yet{selectedIngredient ? ` for ${selectedIngredient.name}` : ''}.</p>
+                    </div>
+                  ) : (
+                    visibleIngredientLots.map((lot) => (
+                      <LotCard
+                        key={lot.id}
+                        lot={{
+                          ...lot,
+                          lotNumber: lot.internalLotNumber || lot.id,
+                          ingredientName: ingredients?.[lot.ingredientId]?.name || 'Unknown ingredient',
+                          saleBy: lot.expirationDate,
+                          storageLocation: lot.storageLocation?.area || lot.storageLocation?.bin || lot.storageLocation || '—'
+                        }}
+                        onClick={() => handleIngredientLotEdit(lot.id)}
+                        onEdit={() => handleIngredientLotEdit(lot.id)}
+                        onDelete={handleIngredientLotDelete}
+                      />
+                    ))
+                  )}
                 </div>
               </div>
             )}
@@ -1085,6 +1814,27 @@ function App() {
         )}
       </main>
       
+      <AddIngredientModal
+        isOpen={isIngredientCreateOpen}
+        onClose={() => setIsIngredientCreateOpen(false)}
+        onSubmit={handleIngredientCreateSubmit}
+        categories={categories}
+        initialCategory={selectedIngredient?.category || ''}
+      />
+
+      <AddIngredientModal
+        isOpen={isIngredientEditOpen}
+        onClose={() => {
+          setIsIngredientEditOpen(false);
+          setIngredientToEdit(null);
+        }}
+        onSubmit={handleIngredientEditSubmit}
+        categories={categories}
+        mode="edit"
+        ingredient={ingredientToEdit}
+        initialCategory={ingredientToEdit?.category || ''}
+      />
+
       {isIngredientIntakeOpen && (
         <IngredientIntakeModal
           isOpen={isIngredientIntakeOpen}
@@ -1092,6 +1842,7 @@ function App() {
           onSubmit={handleIngredientIntakeSubmit}
           ingredients={ingredients}
           defaultIngredientId={intakeIngredientId}
+          editingLot={editingLotId ? ingredientLots[editingLotId] : null}
         />
       )}
 
@@ -1099,12 +1850,23 @@ function App() {
         <ManagementModal
           product={selectedProduct}
           category={selectedCategory}
+            recipe={selectedRecipe}
           onClose={closeModalAndProduct}
           onUpdate={handleDataUpdate}
           onDeleteBatches={handleDeleteBatches}
           onOpenModal={handleOpenModal}
         />
       )}
+        {activeModal === 'editRecipe' && selectedProduct && (
+          <RecipeModal
+            isOpen
+            product={selectedProduct}
+            ingredients={ingredients}
+            recipe={recipes?.[selectedProduct.id] || null}
+            onClose={() => handleOpenModal('manageProduct')}
+            onSave={(data) => handleRecipeSave(selectedProduct.id, data)}
+          />
+        )}
       {activeModal === 'inventoryManage' && selectedProduct && (
         <InventoryModal
           product={selectedProduct}
@@ -1155,9 +1917,34 @@ function App() {
           </div>
         </div>
       )}
-      {activeModal === 'makeRequest' && ( <MakeRequestModal product={selectedProduct} onClose={() => handleOpenModal('manageProduct')} onSubmit={(data) => handleDataUpdate('Make', data)} /> )}
+      {activeModal === 'makeRequest' && (
+        <MakeRequestModal
+          product={selectedProduct}
+          ingredients={ingredients}
+          ingredientLots={ingredientLots}
+          equipment={equipment}
+          recipe={selectedRecipe}
+          onClose={() => handleOpenModal('manageProduct')}
+          onSubmit={(data) => handleDataUpdate('Requested', data)}
+          showIngredientLots={false}
+        />
+      )}
+      {activeModal === 'makeStart' && (
+        <MakeRequestModal
+          product={selectedProduct}
+          ingredients={ingredients}
+          ingredientLots={ingredientLots}
+          equipment={equipment}
+          recipe={recipes?.[selectedProduct?.id || ''] || selectedRecipe}
+          requestedBatch={modalPayload}
+          onClose={() => handleOpenModal('manageProduct')}
+          onSubmit={(data) => handleDataUpdate('Make', data, modalPayload?.id)}
+          showIngredientLots={true}
+        />
+      )}
       {activeModal === 'finalCount' && ( <FinalCountModal product={selectedProduct} batch={modalPayload} onClose={() => handleOpenModal('manageProduct')} onSubmit={(data) => { setTempFinalCount(data); handleOpenModal('verify', modalPayload); }} /> )}
       {activeModal === 'verify' && ( <VerificationModal product={selectedProduct} batch={modalPayload} finalCountData={tempFinalCount} onClose={() => handleOpenModal('finalCount', modalPayload)} onVerify={() => handleDataUpdate('Ready', tempFinalCount, modalPayload.id)} /> )}
+      {activeModal === 'lotDetail' && selectedBatchId && ( <LotDetailModal batch={batches[selectedBatchId]} products={products} ingredients={ingredients} onClose={() => { setSelectedBatchId(null); setActiveModal(null); }} onStatusChange={(data) => { handleDataUpdate(data.status, data, selectedBatchId); setSelectedBatchId(null); setActiveModal(null); }} /> )}
       {activeModal === 'containers' && ( <CategoryTemplateModal category={selectedCategory} onClose={() => handleOpenModal('manageProduct')} onSave={handleTemplateSave} /> )}
       {activeModal === 'editInventory' && ( 
         <EditInventoryModal
@@ -1197,9 +1984,21 @@ function App() {
             </div>
             <div className="modal-body">
               <WhitelistManager />
+              <div style={{marginTop: '24px', paddingTop: '24px', borderTop: '1px solid #e5e7eb'}}>
+                <button className="btn-primary" onClick={() => setActiveModal('equipmentManager')}>
+                  Manage Equipment
+                </button>
+              </div>
             </div>
           </div>
         </div>
+      )}
+
+      {activeModal === 'equipmentManager' && (
+        <EquipmentManager
+          equipment={equipment}
+          onClose={() => setActiveModal(null)}
+        />
       )}
 
       {activeModal === 'csvImportPreview' && pendingCsvImport && (
